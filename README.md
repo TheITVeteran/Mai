@@ -4,10 +4,11 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
 
 ## Features
 
-- Powered by local LM Studio (privacy-first)
-- Personality-driven responses with emotional depth
-- Discord-native interaction
-- Small codebase, easy to extend
+- 🤖 Powered by local LMStudio (privacy-first)
+- 💕 Emotional, personality-driven responses
+- 🎭 Real character depth (protective, playful, vulnerable)
+- 🎮 Discord-native interaction
+- 🚀 Built for iterative development
 
 ## Current Status (MVP)
 
