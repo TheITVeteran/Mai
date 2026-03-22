@@ -4,11 +4,10 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
 
 ## Features
 
-- 🤖 Powered by local LMStudio (privacy-first)
-- 💕 Emotional, personality-driven responses
-- 🎭 Real character depth (protective, playful, vulnerable)
-- 🎮 Discord-native interaction
-- 🚀 Built for iterative development
+- Powered by local LM Studio (privacy-first)
+- Personality-driven responses with emotional depth
+- Discord-native interaction
+- Small codebase, easy to extend
 
 ## Current Status (MVP)
 
@@ -26,7 +25,7 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
 2. Create virtual environment: `python3 -m venv .venv`
 3. Activate: `source .venv/bin/activate`
 4. Install: `pip install -r requirements.txt`
-5. Create `.env` with your Discord token: `DISCORD_TOKEN=your_token_here`
+5. Copy `.env.example` to `.env` and set `DISCORD_TOKEN`
 6. Start LMStudio locally
 7. Run: `python mai_bot.py`
 
@@ -44,8 +43,9 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
 
 - `mai_bot.py` - Main bot logic
 - `mai_personality.py` - Mai's personality/system prompt
-- `test_lmstudio.py` - LMStudio connection test
-- `.env` - Discord token (DO NOT COMMIT)
+- `test_lmstudio.py` - LM Studio connection test
+- `.env.example` - Environment variable template (safe to commit)
+- `.env` - Your secrets (gitignored; never commit)
 
 ## Next Steps
 

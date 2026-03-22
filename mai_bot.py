@@ -1,67 +1,64 @@
 import os
-from dotenv import load_dotenv
+import sys
+
 import discord
 import requests
+from dotenv import load_dotenv
+
 from mai_personality import MAI_SYSTEM_PROMPT
 
-# Load .env file
 load_dotenv()
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
-# LMStudio settings
-API_URL = "http://localhost:1234/api/v1/chat"
-MODEL_NAME = "l3-8b-stheno-v3.2-iq-imatrix"
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+API_URL = os.getenv("LMSTUDIO_API_URL", "http://localhost:1234/api/v1/chat")
+MODEL_NAME = os.getenv("LMSTUDIO_MODEL", "l3-8b-stheno-v3.2-iq-imatrix")
+REQUEST_TIMEOUT_S = 120
 
-# Setup the Discord Bot
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-# Conversation History (STM)
-conversation_history = []
 
 async def get_mai_response(user_message: str) -> str:
-    """
-    Send a message to LMStudio with Mai's personality and get her response.
-    """
-    # Combine the system prompt with the user message
+    """Send a message to LM Studio with Mai's personality and return her reply."""
     full_input = f"{MAI_SYSTEM_PROMPT}\n\nUser: {user_message}"
-    payload = {
-        "model": MODEL_NAME,
-        "input": full_input
-    }
+    payload = {"model": MODEL_NAME, "input": full_input}
 
     try:
-        response = requests.post(API_URL, json=payload)
+        response = requests.post(
+            API_URL, json=payload, timeout=REQUEST_TIMEOUT_S
+        )
         response.raise_for_status()
-
         data = response.json()
-        # Extract Reply
-        mai_response = data['output'][0]['content']
-        return mai_response
+        return data["output"][0]["content"]
     except Exception as e:
-        print(f"Error calling LMStuiod: {e}")
+        print(f"Error calling LM Studio: {e}")
         return "Sorry, I had trouble thinking... try again?"
+
 
 @client.event
 async def on_ready():
-    print(f'{client.user} has connected to Discord!')
+    print(f"{client.user} has connected to Discord!")
+
 
 @client.event
 async def on_message(message):
-    # Don't respond to our own messages
     if message.author == client.user:
         return
 
     print(f"{message.author}: {message.content}")
 
-    # show typing
     async with message.channel.typing():
-        # Get Mai's reply
         mai_response = await get_mai_response(message.content)
-
-        # Send it back to Discord
         await message.channel.send(mai_response)
 
-# Run the bot
-client.run(DISCORD_TOKEN) 
+
+def main():
+    if not DISCORD_TOKEN:
+        print("Missing DISCORD_TOKEN. Copy .env.example to .env and set your token.")
+        sys.exit(1)
+    client.run(DISCORD_TOKEN)
+
+
+if __name__ == "__main__":
+    main()
