@@ -68,8 +68,8 @@ def save_memory(memory: dict) -> bool:
         
         # 2. Write temp file first
         temp_file = MEMORY_FILE.with_suffix(".tmp.json")
-        with open(temp_file, 'w', encoding="utf-8") as f:
-            json.dump(memory_data, f, indent=2, ensure_ascii=False)
+        with open(temp_file, "w", encoding="utf-8") as f:
+            json.dump(memory, f, indent=2, ensure_ascii=False)
         
         # 3. Verify it's valid JSON
         with open(temp_file, 'r', encoding='utf-8') as f:
