@@ -34,20 +34,19 @@ def add_interaction(memory_data: dict, user_message: str, mai_response: str) -> 
         "user": "user",
     }
 
-    # Ensure structure exists
-    if "short_term_memory" not in memory_data:
-        memory_data["short_term_memory"] = []
-    
-    if "recent_interactions" not in memory_data:
-        memory_data["short_term_memory"]["recent_interactions"] = []
-    
+    # Ensure structure exists (short_term_memory must be a dict, not a list)
+    stm = memory_data.get("short_term_memory")
+    if not isinstance(stm, dict):
+        memory_data["short_term_memory"] = {}
+        stm = memory_data["short_term_memory"]
+    stm.setdefault("recent_interactions", [])
+
     # Add the new interaction
-    memory_data["short_term_memory"]["recent_interactions"].append(interaction)
+    stm["recent_interactions"].append(interaction)
 
     # Keep only the latest 10 interactions
-    if len(memory_data["short_term_memory"]["recent_interactions"]) > 10:
-        memory_data["short_term_memory"]["recent_interactions"] = \
-            memory_data["short_term_memory"]["recent_interactions"][-10:]
+    if len(stm["recent_interactions"]) > 10:
+        stm["recent_interactions"] = stm["recent_interactions"][-10:]
     
     memory_data["last_updated"] = datetime.now().isoformat()
 
