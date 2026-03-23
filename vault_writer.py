@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from datetime import datetime
+import shutil
 
 # Define the path to the vault file
 VAULT_PATH = Path("/mnt/d/Vaults/CafeCovenVault/Coven/Agents/Mai")
@@ -52,23 +53,49 @@ def add_interaction(memory_data: dict, user_message: str, mai_response: str) -> 
 
     return memory_data
 
-def save_memory(memory_data: dict) -> bool:
+def save_memory(memory: dict) -> bool:
     """
-    Save the memory back to the vault file.
-
-    Args:
-        memory_data: The memory data to save.
-    Returns:
-        True if successful, False otherwise.
+    Save memory back to the vault file.
+    Uses atomic write to ensure data integrity.
+    Creates backup file with .backup.json extension.
     """
     try:
-        with open(MEMORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(memory_data, f, indent=4)
+        # 1. Create backup (before we do anything)
+        backup_file = MEMORY_FILE.with_suffix(".backup.json")
+        if MEMORY_FILE.exists():
+            shutil.copy2(MEMORY_FILE, backup_file)
+            print(f"Backup created: {backup_file.name}")
+        
+        # 2. Write temp file first
+        temp_file = MEMORY_FILE.with_suffix(".tmp.json")
+        with open(temp_file, 'w', encoding="utf-8") as f:
+            json.dump(memory_data, f, indent=2, ensure_ascii=False)
+        
+        # 3. Verify it's valid JSON
+        with open(temp_file, 'r', encoding='utf-8') as f:
+            json.load(f)
+        
+        # 4. Atomic rename
+        temp_file.replace(MEMORY_FILE)
+
+        saved_count = len(memory.get("short_term_memory", {}).get("recent_interactions", []))
+        print(f"Memory saved successfully. {saved_count} interactions saved.")
         return True
     except Exception as e:
-        print(f"Error saving memory.json: {e}")
+        print(f"Error saving memory: {e}")
+        print(f"Backup file: {backup_file.name}")
         return False
 
+def restore_from_backup():
+    """Restore memory from backup file."""
+    backup_file = MEMORY_FILE.with_suffix(".backup.json")
+    if backup_file.exists():
+        shutil.copy2(backup_file, MEMORY_FILE)
+        print(f"Restored from backup: {backup_file.name}")
+        return True
+    else:
+        print("No backup file found to restore from.")
+        return False
 
 # Test the functions
 if __name__ == "__main__":
