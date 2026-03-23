@@ -2,10 +2,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 import shutil
-
-# Define the path to the vault file
-VAULT_PATH = Path("/mnt/d/Vaults/CafeCovenVault/Coven/Agents/Mai")
-MEMORY_FILE = VAULT_PATH / "memory.json"
+from config import MEMORY_FILE, BACKUP_FILE
 
 def load_memory():
     """Load the memory.json file. (so we can modify it)"""
@@ -61,7 +58,7 @@ def save_memory(memory: dict) -> bool:
     """
     try:
         # 1. Create backup (before we do anything)
-        backup_file = MEMORY_FILE.with_suffix(".backup.json")
+        backup_file = BACKUP_FILE
         if MEMORY_FILE.exists():
             shutil.copy2(MEMORY_FILE, backup_file)
             print(f"Backup created: {backup_file.name}")
@@ -88,7 +85,7 @@ def save_memory(memory: dict) -> bool:
 
 def restore_from_backup():
     """Restore memory from backup file."""
-    backup_file = MEMORY_FILE.with_suffix(".backup.json")
+    backup_file = BACKUP_FILE
     if backup_file.exists():
         shutil.copy2(backup_file, MEMORY_FILE)
         print(f"Restored from backup: {backup_file.name}")

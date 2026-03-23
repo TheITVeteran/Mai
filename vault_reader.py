@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
-
-# Define the path to the vault file
-VAULT_PATH = Path("/mnt/d/Vaults/CafeCovenVault/Coven/Agents/Mai")
+from config import VAULT_PATH
 
 def load_memory():
     """Load memories from the vault file."""

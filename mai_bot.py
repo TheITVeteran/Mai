@@ -1,5 +1,6 @@
 import os
 import sys
+import asyncio
 
 import discord
 import requests
@@ -12,61 +13,51 @@ from vault_writer import add_interaction, save_memory
 
 load_dotenv()
 
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-API_URL = os.getenv("LMSTUDIO_API_URL", "http://localhost:1234/api/v1/chat")
-MODEL_NAME = os.getenv("LMSTUDIO_MODEL", "l3-8b-stheno-v3.2-iq-imatrix")
-REQUEST_TIMEOUT_S = 120
+from config import (
+    DISCORD_CLIENT as client,
+    DISCORD_TOKEN,
+    LMSTUDIO_API_URL,
+    LMSTUDIO_MODEL,
+    REQUEST_TIMEOUT_S,
+)
 
-intents = discord.Intents.default()
-intents.message_content = True
-client = discord.Client(intents=intents)
-
-
+# Function to get Mai's response
 async def get_mai_response(user_message: str) -> str:
-    """
-    Send a message to LMStudio with Mai's personality and memory context
-    then save the interaction to the vault.
-    """
-    try:
-        #Load memory and state
-        memory_data = load_memory()
-        state_data = load_state()
-
-        #Build context
-        memory_context = build_context_string(memory_data, state_data)
-
-        # Build the full prompt: system prompt + memory context + user message
-        full_input = MAI_SYSTEM_PROMPT
-
+    """Async wrapper for LM Studio calls."""
+    def _sync_work():
+        # Load, build, save - all sync work here
+        memory = load_memory()
+        state = load_state()
+        memory_context = build_context_string(memory, state)
+        
+        full_input = f"{MAI_SYSTEM_PROMPT}"
         if memory_context:
-            full_input += (
-                f"\n\n-----MEMORY CONTEXT-----\n{memory_context}\n-----END MEMORY-----"
-            )
-
+            full_input += f"\n\n--- MEMORY CONTEXT ---\n{memory_context}\n--- END MEMORY ---"
         full_input += f"\n\nUser: {user_message}"
-
-        payload = {
-            "model": MODEL_NAME,
-            "input": full_input,
-        }
-
+        
+        payload = {"model": LMSTUDIO_MODEL, "input": full_input}
         response = requests.post(
-            API_URL, json=payload, timeout=REQUEST_TIMEOUT_S
+            LMSTUDIO_API_URL, json=payload, timeout=REQUEST_TIMEOUT_S
         )
         response.raise_for_status()
-
+        
         data = response.json()
-        mai_response = data["output"][0]["content"]
-
-        # Save the interaction to the vault
-        memory = add_interaction(memory_data, user_message, mai_response)
-        save_memory(memory)
-
+        mai_response = data['output'][0]['content']
+        
+        memory = add_interaction(memory, user_message, mai_response)
+        if not save_memory(memory):
+            print("⚠️  Save failed!")
+        
         return mai_response
+    
+    try:
+        # Run sync work in a thread pool - doesn't block Discord
+        return await asyncio.to_thread(_sync_work)
     except Exception as e:
-        print(f"Error getting Mai response: {e}")
+        print(f"Error: {e}")
         return "Sorry, I had trouble thinking... try again?"
 
+# Event handler for when the bot is ready
 @client.event
 async def on_ready():
     print(f"{client.user} has connected to Discord!")
@@ -80,6 +71,7 @@ async def on_ready():
         print(f"Couldn't load vault: {e}")
 
 
+# Event handler for when a message is sent
 @client.event
 async def on_message(message):
     if message.author == client.user:
@@ -92,6 +84,7 @@ async def on_message(message):
         await message.channel.send(mai_response)
 
 
+# Main function to run the bot
 def main():
     if not DISCORD_TOKEN:
         print("Missing DISCORD_TOKEN. Copy .env.example to .env and set your token.")
@@ -99,5 +92,6 @@ def main():
     client.run(DISCORD_TOKEN)
 
 
+# Entry point
 if __name__ == "__main__":
     main()
