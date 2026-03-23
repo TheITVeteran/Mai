@@ -40,13 +40,17 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
 
 - L3-8B-Stheno-v3.2 (GGUF IQ-Imatrix)
 
-## Files
+## Layout
 
-- `mai_bot.py` - Main bot logic
-- `mai_personality.py` - Mai's personality/system prompt
-- `test_lmstudio.py` - LM Studio connection test
-- `.env.example` - Environment variable template (safe to commit)
-- `.env` - Your secrets (gitignored; never commit)
+- `mai_bot.py` — run the bot (`python mai_bot.py` or `python -m mai.bot`)
+- `mai/` — application package
+  - `config.py` — paths, LM Studio, Discord, limits (env-overridable)
+  - `personality.py` — system prompt
+  - `bot.py` — Discord client and message flow
+  - `vault/` — `memory.json` / `state.json` I/O and LLM context string
+- `scripts/test_lmstudio.py` — quick LM Studio POST smoke test
+- `.env.example` — environment template (safe to commit)
+- `.env` — secrets (gitignored)
 
 ## Next Steps
 
