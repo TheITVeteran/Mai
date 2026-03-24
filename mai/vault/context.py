@@ -10,11 +10,17 @@ def build_context_string(memory_data: dict, state_data: dict) -> str:
     """Build a compact text block for the LLM from memory + state."""
     context_parts = []
 
-    emotion = state_data.get("emotional_state", {}).get("primary_emotion", "neutral")
-    mood = state_data.get("emotional_state", {}).get("mood", "")
+    es = state_data.get("emotional_state") or {}
+    if not isinstance(es, dict):
+        es = {}
+    emotion = es.get("primary_emotion", "neutral")
+    mood = es.get("mood", "")
+    felt = es.get("mai_felt_tone", "")
     context_parts.append(f"Current emotional state: {emotion}")
     if mood:
         context_parts.append(f"Mood: {mood}")
+    if felt:
+        context_parts.append(f"Mai's felt stance toward them: {felt}")
 
     recent = get_recent_interaction(memory_data, count=3)
     if recent:

@@ -2,7 +2,7 @@ import json
 import shutil
 from datetime import datetime
 
-from mai.config import BACKUP_FILE, MAX_INTERACTIONS, MEMORY_FILE
+from mai.config import BACKUP_FILE, MAX_INTERACTIONS, MEMORY_FILE, STATE_FILE
 
 
 def add_interaction(memory_data: dict, user_message: str, mai_response: str) -> dict:
@@ -54,6 +54,27 @@ def save_memory(memory: dict) -> bool:
     except Exception as e:
         print(f"Error saving memory: {e}")
         print(f"Backup file: {backup_file.name}")
+        return False
+
+
+def save_state(state: dict) -> bool:
+    """Atomically write state.json (same pattern as memory)."""
+    state_backup = STATE_FILE.with_suffix(".backup.json")
+    try:
+        if STATE_FILE.exists():
+            shutil.copy2(STATE_FILE, state_backup)
+
+        temp_file = STATE_FILE.with_suffix(".tmp.json")
+        with open(temp_file, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+
+        with open(temp_file, "r", encoding="utf-8") as f:
+            json.load(f)
+
+        temp_file.replace(STATE_FILE)
+        return True
+    except Exception as e:
+        print(f"Error saving state.json: {e}")
         return False
 
 

@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from copy import deepcopy
 
 import requests
 from dotenv import load_dotenv
@@ -7,6 +8,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from mai.config import (
+    DISCORD_ALLOWED_CHANNEL_IDS,
+    DISCORD_ALLOW_DMS,
     DISCORD_CLIENT as client,
     DISCORD_TOKEN,
     LMSTUDIO_API_URL,
@@ -20,7 +23,19 @@ from mai.vault import (
     load_memory,
     load_state,
     save_memory,
+    save_state,
 )
+from mai.vault.emotional_analyzer import EmotionalAnalyzer
+
+_emotion_analyzer = EmotionalAnalyzer()
+
+
+def _channel_allowed(message) -> bool:
+    if message.guild is None:
+        return DISCORD_ALLOW_DMS
+    if not DISCORD_ALLOWED_CHANNEL_IDS:
+        return True
+    return message.channel.id in DISCORD_ALLOWED_CHANNEL_IDS
 
 
 async def get_mai_response(user_message: str) -> str:
@@ -51,6 +66,26 @@ async def get_mai_response(user_message: str) -> str:
         if not save_memory(memory):
             print("⚠️  Save failed!")
 
+        try:
+            interactions = memory.get("short_term_memory", {}).get(
+                "recent_interactions", []
+            )
+            history = interactions[:-1] if len(interactions) > 1 else []
+            analysis = _emotion_analyzer.analyze_interaction(
+                user_message,
+                mai_response,
+                conversation_history=history,
+                current_state=state,
+            )
+            if analysis:
+                new_state = _emotion_analyzer.apply_analysis_to_state(
+                    deepcopy(state), analysis
+                )
+                if not save_state(new_state):
+                    print("⚠️  state.json save failed!")
+        except Exception as emo_err:
+            print(f"⚠️  Emotional state update skipped: {emo_err}")
+
         return mai_response
 
     try:
@@ -63,6 +98,12 @@ async def get_mai_response(user_message: str) -> str:
 @client.event
 async def on_ready():
     print(f"{client.user} has connected to Discord!")
+    print(f"DMs: {'allowed' if DISCORD_ALLOW_DMS else 'ignored'}")
+    if DISCORD_ALLOWED_CHANNEL_IDS:
+        n = len(DISCORD_ALLOWED_CHANNEL_IDS)
+        print(f"Guild channel restriction: {n} allowed ID(s).")
+    else:
+        print("Guild channel restriction: none (all guild channels the bot can access).")
     try:
         memory = load_memory()
         interactions = memory.get("short_term_memory", {}).get(
@@ -76,6 +117,8 @@ async def on_ready():
 @client.event
 async def on_message(message):
     if message.author == client.user:
+        return
+    if not _channel_allowed(message):
         return
 
     print(f"{message.author}: {message.content}")
