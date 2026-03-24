@@ -13,9 +13,14 @@ from mai.config import (
     DISCORD_CLIENT as client,
     DISCORD_TOKEN,
     LMSTUDIO_API_URL,
+    LMSTUDIO_MAX_OUTPUT_TOKENS,
     LMSTUDIO_MODEL,
+    LMSTUDIO_REPEAT_PENALTY,
+    LMSTUDIO_TEMPERATURE,
+    LMSTUDIO_USE_SYSTEM_PROMPT,
     REQUEST_TIMEOUT_S,
 )
+from mai.lmstudio import extract_assistant_text
 from mai.personality import MAI_SYSTEM_PROMPT
 from mai.vault import (
     add_interaction,
@@ -28,6 +33,25 @@ from mai.vault import (
 from mai.vault.emotional_analyzer import EmotionalAnalyzer
 
 _emotion_analyzer = EmotionalAnalyzer()
+
+_DISCORD_MESSAGE_CAP = 2000
+
+# Stops models from simulating a second user turn mid-message.
+_TURN_SUFFIX = (
+    "\n\n[Reply rules — Discord]\n"
+    "- Exactly ONE reply to their last message. One voice, one beat.\n"
+    "- Do not start over with a second thank-you or a second greeting.\n"
+    "- Do not write \"User:\" or pretend they said something new.\n"
+    "- Stay in character; keep it one cohesive message.\n\n"
+    "User: {user}\nMai:"
+)
+
+
+def _trim_discord(text: str, limit: int = _DISCORD_MESSAGE_CAP) -> str:
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1] + "…"
 
 
 def _channel_allowed(message) -> bool:
@@ -46,21 +70,37 @@ async def get_mai_response(user_message: str) -> str:
         state = load_state()
         memory_context = build_context_string(memory, state)
 
-        full_input = MAI_SYSTEM_PROMPT
+        memory_block = ""
         if memory_context:
-            full_input += (
+            memory_block = (
                 f"\n\n--- MEMORY CONTEXT ---\n{memory_context}\n--- END MEMORY ---"
             )
-        full_input += f"\n\nUser: {user_message}"
+        turn = _TURN_SUFFIX.format(user=user_message)
 
-        payload = {"model": LMSTUDIO_MODEL, "input": full_input}
+        payload: dict = {
+            "model": LMSTUDIO_MODEL,
+            "max_output_tokens": LMSTUDIO_MAX_OUTPUT_TOKENS,
+            "repeat_penalty": LMSTUDIO_REPEAT_PENALTY,
+        }
+        if LMSTUDIO_TEMPERATURE is not None:
+            payload["temperature"] = LMSTUDIO_TEMPERATURE
+
+        if LMSTUDIO_USE_SYSTEM_PROMPT:
+            payload["system_prompt"] = MAI_SYSTEM_PROMPT.strip()
+            payload["input"] = (memory_block + turn).lstrip()
+        else:
+            payload["input"] = (MAI_SYSTEM_PROMPT.strip() + memory_block + turn).lstrip()
+
         response = requests.post(
             LMSTUDIO_API_URL, json=payload, timeout=REQUEST_TIMEOUT_S
         )
         response.raise_for_status()
 
         data = response.json()
-        mai_response = data["output"][0]["content"]
+        mai_response = extract_assistant_text(data)
+        if mai_response.lower().startswith("mai:"):
+            mai_response = mai_response[4:].lstrip()
+        mai_response = _trim_discord(mai_response)
 
         memory = add_interaction(memory, user_message, mai_response)
         if not save_memory(memory):

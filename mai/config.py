@@ -85,6 +85,30 @@ LMSTUDIO_API_URL = os.getenv(
     "LMSTUDIO_API_URL", "http://localhost:1234/api/v1/chat"
 )
 
+# Send persona as native `system_prompt` (LM Studio 0.4+). If your server errors, set false.
+LMSTUDIO_USE_SYSTEM_PROMPT = _env_bool("LMSTUDIO_USE_SYSTEM_PROMPT", True)
+
+# Caps runaway / double-reply generations (one Discord message ≈ 300–800 tokens).
+LMSTUDIO_MAX_OUTPUT_TOKENS = max(
+    50, min(4000, _env_int("LMSTUDIO_MAX_OUTPUT_TOKENS", 650))
+)
+LMSTUDIO_REPEAT_PENALTY = _env_float_clamped(
+    "LMSTUDIO_REPEAT_PENALTY", 1.12, 1.0, 2.0
+)
+
+
+def _optional_env_float(name: str) -> float | None:
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+LMSTUDIO_TEMPERATURE = _optional_env_float("LMSTUDIO_TEMPERATURE")
+
 # ---------------------------------------------------------------------------
 # Discord
 # ---------------------------------------------------------------------------

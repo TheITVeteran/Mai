@@ -20,6 +20,7 @@ from mai.config import (
     LMSTUDIO_MODEL,
     REQUEST_TIMEOUT_S,
 )
+from mai.lmstudio import extract_assistant_text
 
 logger = logging.getLogger(__name__)
 
@@ -486,17 +487,7 @@ Example shape:
         )
         response.raise_for_status()
         data = response.json()
-        out = data.get("output")
-        if not isinstance(out, list) or len(out) == 0:
-            raise ValueError("LM Studio response missing output[]")
-        first = out[0]
-        if isinstance(first, dict):
-            content = first.get("content")
-        else:
-            content = first
-        if content is None:
-            raise ValueError("LM Studio output item missing content")
-        return str(content)
+        return extract_assistant_text(data)
 
     def _parse_analysis(self, analysis_text: str) -> Optional[Dict[str, Any]]:
         if not analysis_text or not str(analysis_text).strip():
