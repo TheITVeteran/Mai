@@ -38,7 +38,7 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
 
 ## Model
 
-- L3-8B-Stheno-v3.2 (GGUF IQ-Imatrix)
+- **L3-8B-Stheno-v3.2** (GGUF IQ-Imatrix) — download GGUF files from [Hugging Face: `Lewdiculous/L3-8B-Stheno-v3.2-GGUF-IQ-Imatrix`](https://huggingface.co/Lewdiculous/L3-8B-Stheno-v3.2-GGUF-IQ-Imatrix), then load the `.gguf` you want in LM Studio.
 
 ## Layout
 
