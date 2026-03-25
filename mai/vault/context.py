@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 from typing import cast
 
 from mai.vault.types import MemoryData, StateData, TurnRecord
+
+logger = logging.getLogger(__name__)
 
 
 def get_recent_interaction(
@@ -54,8 +57,9 @@ def build_context_string(memory_data: MemoryData, state_data: StateData) -> str:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     from mai.vault.reader import load_memory, load_state
 
     memory_data = load_memory()
     state_data = load_state()
-    print(build_context_string(memory_data, state_data))
+    logger.info("Context preview:\n%s", build_context_string(memory_data, state_data))

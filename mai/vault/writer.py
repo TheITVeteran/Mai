@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 from datetime import datetime
 
 from mai.config import BACKUP_FILE, MAX_INTERACTIONS, MEMORY_FILE, STATE_FILE
 from mai.vault.types import MemoryData, StateData
+
+logger = logging.getLogger(__name__)
 
 
 def add_interaction(
@@ -40,7 +43,7 @@ def save_memory(memory: MemoryData) -> bool:
     try:
         if MEMORY_FILE.exists():
             shutil.copy2(MEMORY_FILE, backup_file)
-            print(f"Backup created: {backup_file.name}")
+            logger.info("Backup created: %s", backup_file.name)
 
         temp_file = MEMORY_FILE.with_suffix(".tmp.json")
         with open(temp_file, "w", encoding="utf-8") as f:
@@ -54,11 +57,15 @@ def save_memory(memory: MemoryData) -> bool:
         saved_count = len(
             memory.get("short_term_memory", {}).get("recent_interactions", [])
         )
-        print(f"Memory saved successfully. {saved_count} interactions saved.")
+        logger.info(
+            "Memory saved successfully (%s interaction(s) in short-term)",
+            saved_count,
+        )
         return True
-    except Exception as e:
-        print(f"Error saving memory: {e}")
-        print(f"Backup file: {backup_file.name}")
+    except Exception:
+        logger.exception(
+            "Error saving memory (backup path: %s)", backup_file.name
+        )
         return False
 
 
@@ -78,8 +85,8 @@ def save_state(state: StateData) -> bool:
 
         temp_file.replace(STATE_FILE)
         return True
-    except Exception as e:
-        print(f"Error saving state.json: {e}")
+    except Exception:
+        logger.exception("Error saving state.json")
         return False
 
 
@@ -87,18 +94,19 @@ def restore_from_backup() -> bool:
     """Restore memory.json from the backup copy."""
     if BACKUP_FILE.exists():
         shutil.copy2(BACKUP_FILE, MEMORY_FILE)
-        print(f"Restored from backup: {BACKUP_FILE.name}")
+        logger.info("Restored memory from backup: %s", BACKUP_FILE.name)
         return True
-    print("No backup file found to restore from.")
+    logger.warning("No backup file found to restore from (%s)", BACKUP_FILE.name)
     return False
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     from mai.vault.reader import load_memory
 
     memory_data = load_memory()
     n = len(memory_data.get("short_term_memory", {}).get("recent_interactions", []))
-    print(f"Loaded {n} interactions.")
+    logger.info("Loaded %s interactions", n)
 
     memory = add_interaction(
         memory_data,
@@ -108,4 +116,4 @@ if __name__ == "__main__":
     if save_memory(memory):
         check = load_memory()
         interactions = check.get("short_term_memory", {}).get("recent_interactions", [])
-        print(f"Now have {len(interactions)} total interactions.")
+        logger.info("Now have %s total interactions", len(interactions))

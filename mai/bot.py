@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import sys
 from copy import deepcopy
 
@@ -33,6 +34,9 @@ from mai.vault import (
     save_state,
 )
 from mai.vault.emotional_analyzer import EmotionalAnalyzer
+from mai.logging_config import configure_logging
+
+logger = logging.getLogger(__name__)
 
 _emotion_analyzer = EmotionalAnalyzer()
 
@@ -109,7 +113,7 @@ async def get_mai_response(user_message: str) -> str:
 
         memory = add_interaction(memory, user_message, mai_response)
         if not save_memory(memory):
-            print("⚠️  Save failed!")
+            logger.error("Failed to save memory.json")
 
         try:
             interactions = memory.get("short_term_memory", {}).get(
@@ -127,36 +131,38 @@ async def get_mai_response(user_message: str) -> str:
                     deepcopy(state), analysis
                 )
                 if not save_state(new_state):
-                    print("⚠️  state.json save failed!")
-        except Exception as emo_err:
-            print(f"⚠️  Emotional state update skipped: {emo_err}")
+                    logger.error("Failed to save state.json")
+        except Exception:
+            logger.exception("Emotional state update skipped")
 
         return mai_response
 
     try:
         return await asyncio.to_thread(_sync_work)
-    except Exception as e:
-        print(f"Error: {e}")
+    except Exception:
+        logger.exception("get_mai_response failed")
         return "Sorry, I had trouble thinking... try again?"
 
 
 @client.event
 async def on_ready():
-    print(f"{client.user} has connected to Discord!")
-    print(f"DMs: {'allowed' if DISCORD_ALLOW_DMS else 'ignored'}")
+    logger.info("%s has connected to Discord", client.user)
+    logger.info("DMs: %s", "allowed" if DISCORD_ALLOW_DMS else "ignored")
     if DISCORD_ALLOWED_CHANNEL_IDS:
         n = len(DISCORD_ALLOWED_CHANNEL_IDS)
-        print(f"Guild channel restriction: {n} allowed ID(s).")
+        logger.info("Guild channel restriction: %s allowed ID(s)", n)
     else:
-        print("Guild channel restriction: none (all guild channels the bot can access).")
+        logger.info(
+            "Guild channel restriction: none (all guild channels the bot can access)"
+        )
     try:
         memory = load_memory()
         interactions = memory.get("short_term_memory", {}).get(
             "recent_interactions", []
         )
-        print(f"Vault loaded! Mai has {len(interactions)} memories")
-    except Exception as e:
-        print(f"Couldn't load vault: {e}")
+        logger.info("Vault loaded: %s interaction(s) in short-term memory", len(interactions))
+    except Exception:
+        logger.exception("Could not load vault for startup summary")
 
 
 @client.event
@@ -166,7 +172,7 @@ async def on_message(message):
     if not _channel_allowed(message):
         return
 
-    print(f"{message.author}: {message.content}")
+    logger.info("Message from %s: %s", message.author, message.content)
 
     async with message.channel.typing():
         mai_response = await get_mai_response(message.content)
@@ -174,8 +180,11 @@ async def on_message(message):
 
 
 def main():
+    configure_logging()
     if not DISCORD_TOKEN:
-        print("Missing DISCORD_TOKEN. Copy .env.example to .env and set your token.")
+        logger.error(
+            "Missing DISCORD_TOKEN. Copy .env.example to .env and set your token."
+        )
         sys.exit(1)
     client.run(DISCORD_TOKEN)
 

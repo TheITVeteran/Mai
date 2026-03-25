@@ -635,24 +635,30 @@ if __name__ == "__main__":
     analyzer = EmotionalAnalyzer()
     test = "I've been struggling a lot lately, but talking to you helps"
 
-    print("Hybrid Emotional Analyzer Test\n")
+    logger.info("Hybrid emotional analyzer demo")
 
-    print("Fast NLP Analysis (instant):")
+    logger.info("Fast NLP analysis:")
     result = analyzer.analyze_interaction(test, "I'm here for you.")
     if result:
-        print(f" - Primary Emotion: {result['primary_emotion']}")
-        print(f" - Valence: {result['valence']:.2f}")
-        print(f" - Type: {result['analysis_type']}")
+        logger.info(
+            "  primary=%s valence=%.2f type=%s",
+            result["primary_emotion"],
+            result["valence"],
+            result["analysis_type"],
+        )
 
-    print("\nDeep LM Studio Analysis (optional):")
+    logger.info("Deep LM Studio analysis (optional):")
     result = analyzer.analyze_interaction(
         test, "I'm here for you.", use_deep_analysis=True
     )
     if result:
-        print(f" - Primary Emotion: {result['primary_emotion']}")
-        print(f" - Valence: {result['valence']:.2f}")
-        print(f" - Type: {result['analysis_type']}")
+        logger.info(
+            "  primary=%s valence=%.2f type=%s",
+            result["primary_emotion"],
+            result["valence"],
+            result["analysis_type"],
+        )
         if result.get("analysis_type") != "lmstudio" and not result.get("combined"):
-            print(" - (LM Studio did not return a mergeable result; NLP only.)")
+            logger.info("  (LM Studio did not return a mergeable result; NLP only.)")
     else:
-        print(" - No result (unexpected failure)")
+        logger.warning("  No result (unexpected failure)")

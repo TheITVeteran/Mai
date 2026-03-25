@@ -81,7 +81,7 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 ## Technical debt
 
 - [ ] Shared LM Studio HTTP helper used by bot + analyzer
-- [ ] Consistent logging module (replace stray prints where it matters)
+- [x] Consistent logging (`mai/logging_config.py`, `LOG_LEVEL`, vault + bot use `logging`)
 - [ ] Document vault schema (`memory.json` / `state.json`) in README or `mai/vault/`
 - [ ] Validate / migrate `memory.json` structure on load
 
