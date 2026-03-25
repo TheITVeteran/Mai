@@ -88,13 +88,16 @@ LMSTUDIO_API_URL = os.getenv(
 # Send persona as native `system_prompt` (LM Studio 0.4+). If your server errors, set false.
 LMSTUDIO_USE_SYSTEM_PROMPT = _env_bool("LMSTUDIO_USE_SYSTEM_PROMPT", True)
 
-# Caps runaway / double-reply generations (one Discord message ≈ 300–800 tokens).
+# Generation length / repetition (tune in .env; low repeat_penalty = more natural variance).
 LMSTUDIO_MAX_OUTPUT_TOKENS = max(
-    50, min(4000, _env_int("LMSTUDIO_MAX_OUTPUT_TOKENS", 650))
+    50, min(4000, _env_int("LMSTUDIO_MAX_OUTPUT_TOKENS", 720))
 )
 LMSTUDIO_REPEAT_PENALTY = _env_float_clamped(
-    "LMSTUDIO_REPEAT_PENALTY", 1.12, 1.0, 2.0
+    "LMSTUDIO_REPEAT_PENALTY", 1.08, 1.0, 2.0
 )
+
+# Extra guard if the model stacks two “speeches” in one reply (fixed mostly by one bot process).
+REPLY_SANITIZE = _env_bool("REPLY_SANITIZE", False)
 
 
 def _optional_env_float(name: str) -> float | None:

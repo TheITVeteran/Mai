@@ -18,10 +18,12 @@ from mai.config import (
     LMSTUDIO_REPEAT_PENALTY,
     LMSTUDIO_TEMPERATURE,
     LMSTUDIO_USE_SYSTEM_PROMPT,
+    REPLY_SANITIZE,
     REQUEST_TIMEOUT_S,
 )
 from mai.lmstudio import extract_assistant_text
 from mai.personality import MAI_SYSTEM_PROMPT
+from mai.reply_sanitize import sanitize_mai_reply
 from mai.vault import (
     add_interaction,
     build_context_string,
@@ -36,13 +38,10 @@ _emotion_analyzer = EmotionalAnalyzer()
 
 _DISCORD_MESSAGE_CAP = 2000
 
-# Stops models from simulating a second user turn mid-message.
 _TURN_SUFFIX = (
-    "\n\n[Reply rules — Discord]\n"
-    "- Exactly ONE reply to their last message. One voice, one beat.\n"
-    "- Do not start over with a second thank-you or a second greeting.\n"
-    "- Do not write \"User:\" or pretend they said something new.\n"
-    "- Stay in character; keep it one cohesive message.\n\n"
+    "\n\n(They just messaged you on Discord — answer them as Mai, fully yourself. "
+    "Stay one message / one send, but gesture, warmth, and little stage bits are fine "
+    "if they feel natural.)\n\n"
     "User: {user}\nMai:"
 )
 
@@ -73,7 +72,11 @@ async def get_mai_response(user_message: str) -> str:
         memory_block = ""
         if memory_context:
             memory_block = (
-                f"\n\n--- MEMORY CONTEXT ---\n{memory_context}\n--- END MEMORY ---"
+                "\n\n--- MEMORY CONTEXT ---\n"
+                "(Continuity and emotional background — your reply is to what they say "
+                'under "User:" at the end.)\n'
+                f"{memory_context}\n"
+                "--- END MEMORY ---"
             )
         turn = _TURN_SUFFIX.format(user=user_message)
 
@@ -100,6 +103,8 @@ async def get_mai_response(user_message: str) -> str:
         mai_response = extract_assistant_text(data)
         if mai_response.lower().startswith("mai:"):
             mai_response = mai_response[4:].lstrip()
+        if REPLY_SANITIZE:
+            mai_response = sanitize_mai_reply(mai_response)
         mai_response = _trim_discord(mai_response)
 
         memory = add_interaction(memory, user_message, mai_response)

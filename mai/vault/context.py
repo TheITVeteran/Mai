@@ -24,7 +24,7 @@ def build_context_string(memory_data: dict, state_data: dict) -> str:
 
     recent = get_recent_interaction(memory_data, count=3)
     if recent:
-        context_parts.append("\nRecent conversations:")
+        context_parts.append("\nRecent things they've said (for context):")
         for interaction in recent:
             user_msg = interaction.get("user_message", "")[:80]
             context_parts.append(f"- {user_msg}")
