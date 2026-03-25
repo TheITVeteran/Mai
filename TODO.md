@@ -45,10 +45,10 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 
 ### Testing & validation
 
-- [ ] Test suite for `emotional_analyzer` (10+ cases: NLP path, LM path, merge, low confidence, empty input)
+- [x] Unit tests (`tests/`, pytest): vault reader/writer/context + `emotional_analyzer` (NLP mocked, LM path mocked)
 - [ ] Memory persistence: restart bot, recall recent interaction
 - [ ] `state.json` + `recent_changes` with real Discord traffic
-- [ ] Regression: vault reader/writer and context string shape
+- [ ] Broader integration / regression beyond unit scope
 
 ---
 
@@ -80,8 +80,6 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 
 ## Technical debt
 
-- [ ] Type hints across `mai/vault/*`
-- [ ] Unit tests for `reader` / `writer` / context builder
 - [ ] Shared LM Studio HTTP helper used by bot + analyzer
 - [ ] Consistent logging module (replace stray prints where it matters)
 - [ ] Document vault schema (`memory.json` / `state.json`) in README or `mai/vault/`
