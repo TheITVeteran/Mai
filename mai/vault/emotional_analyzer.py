@@ -9,7 +9,7 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import requests
 
@@ -21,6 +21,7 @@ from mai.config import (
     REQUEST_TIMEOUT_S,
 )
 from mai.lmstudio import extract_assistant_text
+from mai.vault.types import EmotionAnalysis, StateData, TurnRecord
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ def _extract_first_json_object(text: str) -> Optional[str]:
     return None
 
 
-def _coerce_secondary_emotions(data: Dict[str, Any]) -> List[str]:
+def _coerce_secondary_emotions(data: dict[str, Any]) -> list[str]:
     raw = data.get("secondary_emotions")
     if isinstance(raw, list):
         return [str(x) for x in raw if x is not None]
@@ -114,7 +115,7 @@ class EmotionalAnalyzer:
             s = s[:max_chars]
         return s
 
-    def _empty_message_analysis(self) -> Dict[str, Any]:
+    def _empty_message_analysis(self) -> EmotionAnalysis:
         now = datetime.now().isoformat()
         return {
             "primary_emotion": "neutral",
@@ -143,10 +144,10 @@ class EmotionalAnalyzer:
         self,
         user_message: str,
         mai_response: str,
-        conversation_history: Optional[List[Dict]] = None,
-        current_state: Optional[Dict] = None,
+        conversation_history: Optional[list[TurnRecord]] = None,
+        current_state: Optional[StateData] = None,
         use_deep_analysis: Optional[bool] = None,
-    ) -> Optional[Dict]:
+    ) -> Optional[EmotionAnalysis]:
         """
         Analyze affect for the user message + Mai's reply.
 
@@ -197,7 +198,7 @@ class EmotionalAnalyzer:
             return self._fallback_analysis(user_message, str(e))
 
     def _should_deep_analyze(
-        self, user_message: str, nlp_analysis: Dict[str, Any]
+        self, user_message: str, nlp_analysis: EmotionAnalysis
     ) -> bool:
         """Heuristic: use LM Studio on emotionally loaded or complex turns."""
         if len(user_message) >= 180:
@@ -214,7 +215,7 @@ class EmotionalAnalyzer:
             return True
         return False
 
-    def _fallback_analysis(self, user_message: str, reason: str) -> Dict[str, Any]:
+    def _fallback_analysis(self, user_message: str, reason: str) -> EmotionAnalysis:
         """Keyword-only snapshot when NLP / merge fails."""
         primary = self._detect_emotion_keywords(user_message)
         now = datetime.now().isoformat()
@@ -241,7 +242,7 @@ class EmotionalAnalyzer:
             "analysis_type": "fallback",
         }
 
-    def _nlp_analysis(self, user_message: str) -> Dict[str, Any]:
+    def _nlp_analysis(self, user_message: str) -> EmotionAnalysis:
         """Fast NLP-based emotional analysis."""
         sia = _get_vader()
         if sia is not None:
@@ -387,9 +388,9 @@ class EmotionalAnalyzer:
         self,
         user_message: str,
         mai_response: str,
-        conversation_history: Optional[List[Dict]] = None,
-        current_state: Optional[Dict] = None,
-    ) -> Optional[Dict]:
+        conversation_history: Optional[list[TurnRecord]] = None,
+        current_state: Optional[StateData] = None,
+    ) -> Optional[EmotionAnalysis]:
         try:
             prompt = self._build_analysis_prompt(
                 user_message,
@@ -402,9 +403,10 @@ class EmotionalAnalyzer:
                 return None
             analysis = self._parse_analysis(analysis_text)
             if analysis:
-                analysis = self._normalize_analysis(analysis)
-                analysis["analysis_type"] = "lmstudio"
-            return analysis
+                normalized = self._normalize_analysis(analysis)
+                normalized["analysis_type"] = "lmstudio"
+                return normalized
+            return None
         except Exception as e:
             logger.warning("Deep LM Studio analysis failed: %s", e)
             return None
@@ -413,8 +415,8 @@ class EmotionalAnalyzer:
         self,
         user_message: str,
         mai_response: str,
-        conversation_history: Optional[List[Dict]] = None,
-        current_state: Optional[Dict] = None,
+        conversation_history: Optional[list[TurnRecord]] = None,
+        current_state: Optional[StateData] = None,
     ) -> str:
         context = ""
 
@@ -489,7 +491,7 @@ Example shape:
         data = response.json()
         return extract_assistant_text(data)
 
-    def _parse_analysis(self, analysis_text: str) -> Optional[Dict[str, Any]]:
+    def _parse_analysis(self, analysis_text: str) -> Optional[EmotionAnalysis]:
         if not analysis_text or not str(analysis_text).strip():
             return None
         text = str(analysis_text).strip()
@@ -507,7 +509,7 @@ Example shape:
                 return None
         return None
 
-    def _normalize_analysis(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_analysis(self, analysis: dict[str, Any]) -> EmotionAnalysis:
         out = dict(analysis)
         upe = out.get("user_primary_emotion")
         if upe is not None and str(upe).strip():
@@ -540,8 +542,8 @@ Example shape:
         return out
 
     def _merge_analyses(
-        self, nlp_analysis: Dict[str, Any], lmstudio_analysis: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, nlp_analysis: EmotionAnalysis, lmstudio_analysis: EmotionAnalysis
+    ) -> EmotionAnalysis:
         merged = deepcopy(nlp_analysis)
         lm = deepcopy(lmstudio_analysis)
         merged.update(lm)
@@ -549,7 +551,7 @@ Example shape:
         merged["combined"] = True
         return self._normalize_analysis(merged)
 
-    def should_update_state(self, analysis: Dict[str, Any]) -> bool:
+    def should_update_state(self, analysis: EmotionAnalysis) -> bool:
         confidence = _safe_float(analysis.get("confidence"), 0.0)
         at = str(analysis.get("analysis_type", ""))
         if at in ("lmstudio", "combined"):
@@ -557,8 +559,8 @@ Example shape:
         return confidence >= 0.55
 
     def apply_analysis_to_state(
-        self, state_data: Dict[str, Any], analysis: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, state_data: StateData, analysis: EmotionAnalysis
+    ) -> StateData:
         if not analysis or not isinstance(analysis, dict):
             return state_data
         if not self.should_update_state(analysis):

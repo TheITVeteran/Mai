@@ -1,12 +1,22 @@
-def get_recent_interaction(memory_data: dict, count: int = 5) -> list:
+from __future__ import annotations
+
+from typing import cast
+
+from mai.vault.types import MemoryData, StateData, TurnRecord
+
+
+def get_recent_interaction(
+    memory_data: MemoryData, count: int = 5
+) -> list[TurnRecord]:
     """Return the last N interactions from memory data."""
-    interactions = memory_data.get("short_term_memory", {}).get(
-        "recent_interactions", []
-    )
-    return interactions[-count:] if interactions else []
+    raw = memory_data.get("short_term_memory", {}).get("recent_interactions", [])
+    if not isinstance(raw, list) or not raw:
+        return []
+    interactions = [x for x in raw if isinstance(x, dict)]
+    return cast(list[TurnRecord], interactions[-count:])
 
 
-def build_context_string(memory_data: dict, state_data: dict) -> str:
+def build_context_string(memory_data: MemoryData, state_data: StateData) -> str:
     """Build a compact text block for the LLM from memory + state."""
     context_parts = []
 

@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import json
 import shutil
 from datetime import datetime
 
 from mai.config import BACKUP_FILE, MAX_INTERACTIONS, MEMORY_FILE, STATE_FILE
+from mai.vault.types import MemoryData, StateData
 
 
-def add_interaction(memory_data: dict, user_message: str, mai_response: str) -> dict:
+def add_interaction(
+    memory_data: MemoryData, user_message: str, mai_response: str
+) -> MemoryData:
     """Append one turn to short-term memory and return updated dict."""
     interaction = {
         "timestamp": datetime.now().isoformat(),
@@ -29,7 +34,7 @@ def add_interaction(memory_data: dict, user_message: str, mai_response: str) -> 
     return memory_data
 
 
-def save_memory(memory: dict) -> bool:
+def save_memory(memory: MemoryData) -> bool:
     """Atomically write memory.json; keep a backup when replacing an existing file."""
     backup_file = BACKUP_FILE
     try:
@@ -57,7 +62,7 @@ def save_memory(memory: dict) -> bool:
         return False
 
 
-def save_state(state: dict) -> bool:
+def save_state(state: StateData) -> bool:
     """Atomically write state.json (same pattern as memory)."""
     state_backup = STATE_FILE.with_suffix(".backup.json")
     try:
