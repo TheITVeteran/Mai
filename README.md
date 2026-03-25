@@ -47,7 +47,8 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
   - `config.py` — paths, LM Studio, Discord, limits (env-overridable)
   - `personality.py` — system prompt
   - `bot.py` — Discord client and message flow
-  - `vault/` — `memory.json` / `state.json` I/O and LLM context string
+  - `vault/` — `memory.json` / `state.json` I/O, normalisation, context string (`mai/vault/SCHEMA.md`)
+  - `lmstudio.py` — shared `post_chat()` + `extract_assistant_text()` for LM Studio
 - `scripts/test_lmstudio.py` — quick LM Studio POST smoke test
 - `.env.example` — environment template (safe to commit)
 - `.env` — secrets (gitignored)

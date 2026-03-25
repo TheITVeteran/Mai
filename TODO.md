@@ -1,5 +1,7 @@
 # Mai Bot — TODO
 
+**Keeping it current:** When something ships, turn its checkbox **`[ ]` → `[x]`** and add a short pointer (file/module) if useful. Leave completed lines in place until a section feels crowded—then move that block to the bottom under a “Done” heading or trim it. Open work stays **`[ ]`**.
+
 Brief notes on what already exists: emotional analysis runs after each reply in `mai/bot.py`, results are merged into `state.json` via `EmotionalAnalyzer.apply_analysis_to_state`, and `build_context_string` feeds emotion/mood/`mai_felt_tone` plus `facts_learned` into the prompt. Confidence gating is implemented in `should_update_state()`. `relationship_impact` from the analyzer is **not** yet persisted as a trust/bond scalar — that remains to build.
 
 ---
@@ -80,10 +82,10 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 
 ## Technical debt
 
-- [ ] Shared LM Studio HTTP helper used by bot + analyzer
+- [x] Shared LM Studio HTTP helper (`mai/lmstudio.post_chat` — bot, emotional analyzer, `scripts/test_lmstudio.py`)
 - [x] Consistent logging (`mai/logging_config.py`, `LOG_LEVEL`, vault + bot use `logging`)
-- [ ] Document vault schema (`memory.json` / `state.json`) in README or `mai/vault/`
-- [ ] Validate / migrate `memory.json` structure on load
+- [x] Document vault schema (`mai/vault/SCHEMA.md` + README layout)
+- [x] Validate / migrate on load (`mai/vault/memory_normalize.py` from `reader.load_memory` / `load_state`)
 
 ---
 
@@ -94,4 +96,4 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 3. **Facts** — Are user facts extracted and recalled (`facts_learned`)?
 4. **Impact** — Do trust/mood/facts change behavior measurably, not only the prompt block?
 
-Update this file as items ship; archive completed sections rather than deleting history if you want a paper trail.
+Use the convention at the top of this file when you close out tasks.

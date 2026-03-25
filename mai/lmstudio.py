@@ -1,8 +1,33 @@
-"""LM Studio `/api/v1/chat` response parsing."""
+"""LM Studio `/api/v1/chat` HTTP client and response parsing."""
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+import requests
+
+logger = logging.getLogger(__name__)
+
+
+def post_chat(
+    api_url: str,
+    body: dict[str, Any],
+    *,
+    timeout: float,
+) -> dict[str, Any]:
+    """
+    POST JSON to LM Studio chat API; return response body as a dict.
+
+    Raises ``requests.HTTPError`` on non-success status.
+    """
+    logger.debug("LM Studio POST %s model=%r", api_url, body.get("model"))
+    response = requests.post(api_url, json=body, timeout=timeout)
+    response.raise_for_status()
+    data = response.json()
+    if not isinstance(data, dict):
+        raise ValueError("LM Studio response JSON must be an object")
+    return data
 
 
 def extract_assistant_text(data: dict[str, Any]) -> str:

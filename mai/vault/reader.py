@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from mai.config import MEMORY_FILE, STATE_FILE
+from mai.vault.memory_normalize import normalize_memory_data, normalize_state_data
 from mai.vault.types import MemoryData, StateData
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,10 @@ def load_memory() -> MemoryData:
     try:
         with open(MEMORY_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            return data if isinstance(data, dict) else {}
+            if not isinstance(data, dict):
+                logger.warning("Memory JSON root was not an object; using empty memory")
+                return {}
+            return normalize_memory_data(data)
     except FileNotFoundError:
         key = Path(MEMORY_FILE)
         if key not in _warned_memory_missing:
@@ -40,7 +44,10 @@ def load_state() -> StateData:
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            return data if isinstance(data, dict) else {}
+            if not isinstance(data, dict):
+                logger.warning("State JSON root was not an object; using empty state")
+                return {}
+            return normalize_state_data(data)
     except FileNotFoundError:
         key = Path(STATE_FILE)
         if key not in _warned_state_missing:

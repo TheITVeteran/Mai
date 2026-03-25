@@ -11,8 +11,6 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Any, Optional
 
-import requests
-
 from mai.config import (
     EMOTION_ANALYSIS_MODE,
     EMOTION_STATE_BLEND,
@@ -20,7 +18,7 @@ from mai.config import (
     LMSTUDIO_MODEL,
     REQUEST_TIMEOUT_S,
 )
-from mai.lmstudio import extract_assistant_text
+from mai.lmstudio import extract_assistant_text, post_chat
 from mai.vault.types import EmotionAnalysis, StateData, TurnRecord
 
 logger = logging.getLogger(__name__)
@@ -482,13 +480,11 @@ Example shape:
     def _query_lmstudio(self, prompt: str) -> str:
         """POST to LM Studio; raises on HTTP/JSON/shape errors."""
         payload = {"model": self.model, "input": prompt}
-        response = requests.post(
+        data = post_chat(
             self.lmstudio_url,
-            json=payload,
-            timeout=REQUEST_TIMEOUT_S,
+            payload,
+            timeout=float(REQUEST_TIMEOUT_S),
         )
-        response.raise_for_status()
-        data = response.json()
         return extract_assistant_text(data)
 
     def _parse_analysis(self, analysis_text: str) -> Optional[EmotionAnalysis]:

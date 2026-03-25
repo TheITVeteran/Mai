@@ -1,6 +1,6 @@
 import logging
 
-import requests
+from mai.lmstudio import extract_assistant_text, post_chat
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +15,7 @@ payload = {
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s [%(name)s] %(message)s")
     try:
-        response = requests.post(
-            API_URL, json=payload, timeout=REQUEST_TIMEOUT_S
-        )
-        logger.info("Status Code: %s", response.status_code)
-        logger.info("Response: %s", response.json())
+        data = post_chat(API_URL, payload, timeout=float(REQUEST_TIMEOUT_S))
+        logger.info("Assistant text: %s", extract_assistant_text(data))
     except Exception:
         logger.exception("LM Studio request failed")

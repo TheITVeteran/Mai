@@ -3,7 +3,6 @@ import logging
 import sys
 from copy import deepcopy
 
-import requests
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,7 +21,7 @@ from mai.config import (
     REPLY_SANITIZE,
     REQUEST_TIMEOUT_S,
 )
-from mai.lmstudio import extract_assistant_text
+from mai.lmstudio import extract_assistant_text, post_chat
 from mai.personality import MAI_SYSTEM_PROMPT
 from mai.reply_sanitize import sanitize_mai_reply
 from mai.vault import (
@@ -98,12 +97,11 @@ async def get_mai_response(user_message: str) -> str:
         else:
             payload["input"] = (MAI_SYSTEM_PROMPT.strip() + memory_block + turn).lstrip()
 
-        response = requests.post(
-            LMSTUDIO_API_URL, json=payload, timeout=REQUEST_TIMEOUT_S
+        data = post_chat(
+            LMSTUDIO_API_URL,
+            payload,
+            timeout=float(REQUEST_TIMEOUT_S),
         )
-        response.raise_for_status()
-
-        data = response.json()
         mai_response = extract_assistant_text(data)
         if mai_response.lower().startswith("mai:"):
             mai_response = mai_response[4:].lstrip()

@@ -16,6 +16,23 @@ def test_load_memory_valid_json(isolated_vault):
     p.write_text(json.dumps({"short_term_memory": {"recent_interactions": []}}), encoding="utf-8")
     data = load_memory()
     assert data["short_term_memory"]["recent_interactions"] == []
+    assert data["long_term_memory"]["facts_learned"] == []
+
+
+def test_load_memory_normalizes_corrupt_interactions(isolated_vault):
+    p = isolated_vault["memory"]
+    p.write_text(
+        json.dumps(
+            {
+                "short_term_memory": {
+                    "recent_interactions": [{"user_message": "x"}, "bad"],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    data = load_memory()
+    assert len(data["short_term_memory"]["recent_interactions"]) == 1
 
 
 def test_load_memory_invalid_json_returns_empty(isolated_vault):
