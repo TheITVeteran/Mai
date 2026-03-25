@@ -12,6 +12,7 @@ from mai.config import (
     DISCORD_ALLOW_DMS,
     DISCORD_CLIENT as client,
     DISCORD_TOKEN,
+    MAI_PERSONA,
     LMSTUDIO_API_URL,
     LMSTUDIO_MAX_OUTPUT_TOKENS,
     LMSTUDIO_MODEL,
@@ -22,7 +23,7 @@ from mai.config import (
     REQUEST_TIMEOUT_S,
 )
 from mai.lmstudio import extract_assistant_text, post_chat
-from mai.personality import MAI_SYSTEM_PROMPT
+from mai.personality import resolve_mai_system_prompt
 from mai.reply_sanitize import sanitize_mai_reply
 from mai.vault import (
     add_interaction,
@@ -91,11 +92,12 @@ async def get_mai_response(user_message: str) -> str:
         if LMSTUDIO_TEMPERATURE is not None:
             payload["temperature"] = LMSTUDIO_TEMPERATURE
 
+        system_text = resolve_mai_system_prompt(MAI_PERSONA)
         if LMSTUDIO_USE_SYSTEM_PROMPT:
-            payload["system_prompt"] = MAI_SYSTEM_PROMPT.strip()
+            payload["system_prompt"] = system_text
             payload["input"] = (memory_block + turn).lstrip()
         else:
-            payload["input"] = (MAI_SYSTEM_PROMPT.strip() + memory_block + turn).lstrip()
+            payload["input"] = (system_text + memory_block + turn).lstrip()
 
         data = post_chat(
             LMSTUDIO_API_URL,
@@ -144,6 +146,7 @@ async def get_mai_response(user_message: str) -> str:
 
 @client.event
 async def on_ready():
+    logger.info("System prompt variant: %s", MAI_PERSONA)
     logger.info("%s has connected to Discord", client.user)
     logger.info("DMs: %s", "allowed" if DISCORD_ALLOW_DMS else "ignored")
     if DISCORD_ALLOWED_CHANNEL_IDS:

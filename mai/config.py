@@ -113,6 +113,17 @@ def _optional_env_float(name: str) -> float | None:
 LMSTUDIO_TEMPERATURE = _optional_env_float("LMSTUDIO_TEMPERATURE")
 
 # ---------------------------------------------------------------------------
+# Persona
+# ---------------------------------------------------------------------------
+
+# System prompt variant in mai/personality.py: personal (default) vs public (forks).
+MAI_PERSONA: str = _env_choice(
+    "MAI_PERSONA",
+    "personal",
+    frozenset({"personal", "public"}),
+)
+
+# ---------------------------------------------------------------------------
 # Discord
 # ---------------------------------------------------------------------------
 

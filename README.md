@@ -45,7 +45,7 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
 - `mai_bot.py` — run the bot (`python mai_bot.py` or `python -m mai.bot`)
 - `mai/` — application package
   - `config.py` — paths, LM Studio, Discord, limits (env-overridable)
-  - `personality.py` — system prompt
+  - `personality.py` — system prompts (`personal` vs `public`, switch with `MAI_PERSONA`)
   - `bot.py` — Discord client and message flow
   - `vault/` — `memory.json` / `state.json` I/O, normalisation, context string (`mai/vault/SCHEMA.md`)
   - `lmstudio.py` — shared `post_chat()` + `extract_assistant_text()` for LM Studio
