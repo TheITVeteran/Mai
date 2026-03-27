@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from mai.vault.memory_normalize import normalize_memory_data, normalize_state_data
+from mai.vault.memory_normalize import (
+    normalize_memory_data,
+    normalize_state_data,
+    sanitize_mood_line_for_context,
+)
 
 
 def test_normalize_memory_empty():
@@ -49,6 +53,31 @@ def test_normalize_memory_coerces_focus():
 def test_normalize_state_repairs_emotional_state():
     out = normalize_state_data({"emotional_state": "x"})
     assert out["emotional_state"] == {"recent_changes": []}
+
+
+def test_sanitize_mood_drops_narrator_voice():
+    assert sanitize_mood_line_for_context("") == ""
+    assert (
+        sanitize_mood_line_for_context(
+            "User's futuristic hope ignites Mai's imagination."
+        )
+        == ""
+    )
+    assert sanitize_mood_line_for_context("I'm giddy about their idea.") == (
+        "I'm giddy about their idea."
+    )
+
+
+def test_normalize_state_strips_bad_mood():
+    out = normalize_state_data(
+        {
+            "emotional_state": {
+                "mood": "User's hope ignites Mai's imagination.",
+                "recent_changes": [],
+            }
+        }
+    )
+    assert out["emotional_state"].get("mood") == ""
 
 
 def test_normalize_state_filters_recent_changes():

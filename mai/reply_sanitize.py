@@ -76,6 +76,35 @@ _PARAGRAPH_RESTART = re.compile(
     re.IGNORECASE,
 )
 
+# Director's-note lines models leak: "(Playful and eager, leaning into...)" whole line.
+_TRAILING_PAREN_STAGE = re.compile(r"\s+\([A-Z][^()]{12,}\)\s*$")
+
+
+def strip_stage_parentheticals(text: str) -> str:
+    """
+    Remove out-of-character parenthetical acting notes (whole lines or glued suffix).
+
+    Keeps short chatty parens like ``(lol)``; drops long ``(Adjective, clause...)``
+    lines typical of leaked stage directions.
+    """
+    if not text or not text.strip():
+        return text
+    out_lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if (
+            len(stripped) >= 3
+            and stripped.startswith("(")
+            and stripped.endswith(")")
+        ):
+            inner = stripped[1:-1].strip()
+            if len(inner) >= 15:
+                continue
+        out_lines.append(line)
+    s = "\n".join(out_lines).strip()
+    s = _TRAILING_PAREN_STAGE.sub("", s)
+    return s.strip()
+
 
 def _cut_before_second_match(text: str, pat: re.Pattern, min_cut: int) -> str:
     matches = list(pat.finditer(text))
@@ -95,7 +124,7 @@ def sanitize_mai_reply(text: str, *, min_chars_before_cut: int = 50) -> str:
     """Drop a trailing second \"scene\" if detectors fire."""
     if not text or not text.strip():
         return text
-    s = text.strip()
+    s = strip_stage_parentheticals(text.strip())
 
     m = _STAGE_START.search(s)
     if m is not None and m.start("punc") >= min_chars_before_cut:

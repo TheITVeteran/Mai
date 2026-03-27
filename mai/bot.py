@@ -24,7 +24,7 @@ from mai.config import (
 )
 from mai.lmstudio import extract_assistant_text, post_chat
 from mai.personality import resolve_mai_system_prompt
-from mai.reply_sanitize import sanitize_mai_reply
+from mai.reply_sanitize import sanitize_mai_reply, strip_stage_parentheticals
 from mai.vault import (
     add_interaction,
     build_context_string,
@@ -43,9 +43,11 @@ _emotion_analyzer = EmotionalAnalyzer()
 _DISCORD_MESSAGE_CAP = 2000
 
 _TURN_SUFFIX = (
-    "\n\n(They just messaged you on Discord — answer them as Mai, fully yourself. "
-    "Stay one message / one send, but gesture, warmth, and little stage bits are fine "
-    "if they feel natural.)\n\n"
+    "\n\n(They messaged you on Discord — answer as Mai, like a real person texting: "
+    "warmth and stage bits are fine. One send. No AI/chatbot/cognitive-demo jokes, even "
+    "teasing — you're not software on display. The line after User: is *this* message — "
+    "answer it first. Memory above may include their last few turns; use it for natural "
+    "continuity when it's the same conversation, and don't invent topics that never came up.)\n\n"
     "User: {user}\nMai:"
 )
 
@@ -77,8 +79,10 @@ async def get_mai_response(user_message: str) -> str:
         if memory_context:
             memory_block = (
                 "\n\n--- MEMORY CONTEXT ---\n"
-                "(Continuity and emotional background — your reply is to what they say "
-                'under "User:" at the end.)\n'
+                "(Mood/stance plus snippets from recent turns — same thread is fair game, "
+                'even if this "User:" line is short. Answer what they just asked; weave in '
+                "recent context when it fits (e.g. they talked about something a moment ago). "
+                "Don't invent subjects that never appeared in memory or in this line.)\n"
                 f"{memory_context}\n"
                 "--- END MEMORY ---"
             )
@@ -107,6 +111,8 @@ async def get_mai_response(user_message: str) -> str:
         mai_response = extract_assistant_text(data)
         if mai_response.lower().startswith("mai:"):
             mai_response = mai_response[4:].lstrip()
+        # Always strip leaked ``(Playful and eager...)`` director lines; optional deeper sanitize.
+        mai_response = strip_stage_parentheticals(mai_response)
         if REPLY_SANITIZE:
             mai_response = sanitize_mai_reply(mai_response)
         mai_response = _trim_discord(mai_response)

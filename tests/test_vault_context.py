@@ -52,16 +52,16 @@ def test_build_context_emotion_and_mood():
     }
     s = build_context_string(memory, state)
     assert "Current emotional state: warm" in s
-    assert "Mood: soft evening" in s
-    assert "Mai's felt stance toward them: protective" in s
+    assert "How you're feeling inside (private, first person): soft evening" in s
+    assert "Your stance toward them right now: protective" in s
 
 
 def test_build_context_skips_empty_mood_fields():
     memory: dict = {}
     state = {"emotional_state": {"primary_emotion": "neutral"}}
     s = build_context_string(memory, state)
-    assert "Mood:" not in s
-    assert "felt stance" not in s
+    assert "How you're feeling inside" not in s
+    assert "Your stance toward them" not in s
 
 
 def test_build_context_malformed_emotional_state():

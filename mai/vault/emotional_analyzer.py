@@ -19,6 +19,7 @@ from mai.config import (
     REQUEST_TIMEOUT_S,
 )
 from mai.lmstudio import extract_assistant_text, post_chat
+from mai.vault.memory_normalize import sanitize_mood_line_for_context
 from mai.vault.types import EmotionAnalysis, StateData, TurnRecord
 
 logger = logging.getLogger(__name__)
@@ -458,8 +459,8 @@ Mai's reply: "{mr}"
 Return ONE JSON object only (no markdown). Fields:
 - user_primary_emotion: short label for the user's dominant affect
 - user_secondary_emotions: 0-4 additional labels (blends welcome)
-- mai_felt_tone: 1-2 phrases — how Mai would *feel toward the user* this beat (empathic stance, not clinical)
-- mood_digest: one vivid sentence: Mai's internal mood *right now* for diary / memory
+- mai_felt_tone: 1-2 short phrases — Mai's stance toward them (warm, wary, playful…). Not clinical, not narrator-style ("User's X makes Mai Y").
+- mood_digest: ONE sentence in Mai's *first person* as if she wrote in a diary ("I'm curious and a little giddy"), NOT third person ("User's hope ignites Mai's imagination"). Never start with "User's" or "They" describing Mai from outside.
 - valence: -1 very negative .. 1 very positive (user-anchored)
 - arousal: 0 calm .. 1 activated
 - dominance: 0 submissive/withdrawn .. 1 assertive/in-control
@@ -474,7 +475,7 @@ Return ONE JSON object only (no markdown). Fields:
 - analysis_notes: brief clinician-style note (optional)
 
 Example shape:
-{{"user_primary_emotion":"bittersweet","user_secondary_emotions":["relief","exhaustion"],"mai_felt_tone":"warm, protective, a little worried","mood_digest":"She wants closeness but sounds drained; Mai leans caring.","valence":0.2,"arousal":0.55,"dominance":0.45,"intensity":0.65,"confidence":0.78,"triggers":["struggling","talking helps"],"sarcasm_detected":false,"vulnerability_markers":["struggling lately"],"trust_indicators":["talking to you helps"],"relationship_impact":{{"trust_shift":0.06,"familiarity_shift":0.03,"bond_strength_shift":0.07}},"emotional_arc":"vulnerability met with reassurance","analysis_notes":"High intimacy cue; stable positive valence."}}
+{{"user_primary_emotion":"bittersweet","user_secondary_emotions":["relief","exhaustion"],"mai_felt_tone":"warm, protective, a little worried","mood_digest":"I want to hold them close — they sound wiped but brave.","valence":0.2,"arousal":0.55,"dominance":0.45,"intensity":0.65,"confidence":0.78,"triggers":["struggling","talking helps"],"sarcasm_detected":false,"vulnerability_markers":["struggling lately"],"trust_indicators":["talking to you helps"],"relationship_impact":{{"trust_shift":0.06,"familiarity_shift":0.03,"bond_strength_shift":0.07}},"emotional_arc":"vulnerability met with reassurance","analysis_notes":"High intimacy cue; stable positive valence."}}
 """
 
     def _query_lmstudio(self, prompt: str) -> str:
@@ -526,6 +527,9 @@ Example shape:
         for key in ("mai_felt_tone", "mood_digest"):
             if key in out and out[key] is not None:
                 out[key] = str(out[key]).strip()[:600]
+
+        if out.get("mood_digest"):
+            out["mood_digest"] = sanitize_mood_line_for_context(out["mood_digest"])
 
         out["valence"] = _clamp(_safe_float(out.get("valence"), 0.5), -1.0, 1.0)
         out["arousal"] = _clamp(_safe_float(out.get("arousal"), 0.5), 0.0, 1.0)
@@ -599,7 +603,13 @@ Example shape:
 
         mood = analysis.get("mood_digest") or analysis.get("mood")
         if mood and str(mood).strip():
-            es["mood"] = str(mood).strip()[:500]
+            cleaned = sanitize_mood_line_for_context(str(mood).strip()[:500])
+            if cleaned:
+                es["mood"] = cleaned
+            else:
+                es.pop("mood", None)
+        elif analysis.get("mood_digest") == "" or analysis.get("mood") == "":
+            es.pop("mood", None)
         mft = analysis.get("mai_felt_tone")
         if mft and str(mft).strip():
             es["mai_felt_tone"] = str(mft).strip()[:300]

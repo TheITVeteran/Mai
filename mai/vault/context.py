@@ -31,9 +31,10 @@ def build_context_string(memory_data: MemoryData, state_data: StateData) -> str:
     felt = es.get("mai_felt_tone", "")
     context_parts.append(f"Current emotional state: {emotion}")
     if mood:
-        context_parts.append(f"Mood: {mood}")
+        # Diary-style line fed to Mai; should be first-person from analyzer, not narrator omniscient.
+        context_parts.append(f"How you're feeling inside (private, first person): {mood}")
     if felt:
-        context_parts.append(f"Mai's felt stance toward them: {felt}")
+        context_parts.append(f"Your stance toward them right now: {felt}")
 
     recent = get_recent_interaction(memory_data, count=3)
     if recent:

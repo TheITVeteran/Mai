@@ -10,7 +10,7 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 
 ### Emotional system
 
-- [ ] End-to-end test on Discord: message → analysis → `state.json` → next turn sees updated context
+- [X] End-to-end test on Discord: message → analysis → `state.json` → next turn sees updated context
 - [ ] Harden / verify LM Studio timeouts and offline path in the analyzer (NLP fallback already exists)
 - [ ] Optional: structured logging of recent analyses (file or logger), not only prints on failure
 - [ ] Review whether mood vs. primary emotion updates should use different confidence rules

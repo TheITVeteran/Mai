@@ -9,6 +9,27 @@ from mai.vault.types import MemoryData, StateData
 logger = logging.getLogger(__name__)
 
 
+def sanitize_mood_line_for_context(text: object) -> str:
+    """
+    Drop omniscient / narrator mood strings (legacy analyzer output) so they
+    don't nudge the chat model toward meta or third-person exposition.
+    First-person diary lines are kept.
+    """
+    if text is None:
+        return ""
+    s = str(text).strip()
+    if not s:
+        return ""
+    low = s.lower()
+    if low.startswith("user's ") or (low.startswith("their ") and "mai" in low):
+        logger.info("Cleared narrator-style mood text from context")
+        return ""
+    if " ignites mai" in low or "mai's imagination" in low:
+        logger.info("Cleared narrator-style mood text from context")
+        return ""
+    return s[:500]
+
+
 def normalize_memory_data(data: MemoryData) -> MemoryData:
     """
     Ensure ``memory.json`` shape expected by writer/context.
@@ -83,6 +104,10 @@ def normalize_state_data(data: StateData) -> StateData:
         es["recent_changes"] = []
     else:
         es["recent_changes"] = [x for x in rc if isinstance(x, dict)]
+
+    mood_raw = es.get("mood")
+    if mood_raw is not None:
+        es["mood"] = sanitize_mood_line_for_context(mood_raw)
 
     out["emotional_state"] = es
     return out
