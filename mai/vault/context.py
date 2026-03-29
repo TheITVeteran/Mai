@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import logging
-from typing import cast
+from typing import Any, cast
 
 from mai.vault.types import MemoryData, StateData, TurnRecord
 
 logger = logging.getLogger(__name__)
+
+def _safe_float(value: Any, default: float = 0.5) -> float:
+    """Safely convert value to float or return default."""
+    try:
+        return float(value) if value is not None else default
+    except (ValueError, TypeError):
+        return default
 
 
 def get_recent_interaction(
@@ -35,6 +42,40 @@ def build_context_string(memory_data: MemoryData, state_data: StateData) -> str:
         context_parts.append(f"How you're feeling inside (private, first person): {mood}")
     if felt:
         context_parts.append(f"Your stance toward them right now: {felt}")
+    
+    rel_raw = state_data.get("relationship_state")
+    if isinstance(rel_raw, dict) and rel_raw:
+        rel = rel_raw
+        trust = _safe_float(rel.get("trust_level"), 0.5)
+        bond = _safe_float(rel.get("bond_strength"), 0.5)
+        fam = _safe_float(rel.get("familiarity"), 0.5)
+        interactions = int(rel.get("total_interactions", 0) or 0)
+
+        trust_desc = (
+            "a lot"
+            if trust >= 0.75
+            else "quite a bit"
+            if trust >= 0.6
+            else "a little"
+            if trust >= 0.45
+            else "we're still warming up"
+        )
+        bond_desc = (
+            "strong sense of closeness"
+            if bond >= 0.75
+            else "growing"
+            if bond >= 0.6
+            else "early and forming"
+            if bond >= 0.45
+            else "very new and light"
+        )
+        context_parts.append(
+            f"\nRelationship with them (your gut, not physics): "
+            f"trust ~{trust:.0%} ({trust_desc}); "
+            f"bond ~{bond:.0%} ({bond_desc}); "
+            f"familiarity ~{fam:.0%}; "
+            f"relationship updates counted: {interactions}"
+        )
 
     recent = get_recent_interaction(memory_data, count=3)
     if recent:

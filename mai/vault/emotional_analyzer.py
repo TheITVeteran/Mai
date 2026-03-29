@@ -631,7 +631,35 @@ Example shape:
 
         if len(es["recent_changes"]) > 20:
             es["recent_changes"] = es["recent_changes"][-20:]
+        
+        if "relationship_state" not in state_data or not isinstance(
+            state_data["relationship_state"], dict
+        ):
+            state_data["relationship_state"] = {
+                "trust_level": 0.5,
+                "bond_strength": 0.5,
+                "familiarity": 0.5,
+                "total_interactions": 0,
+            }
+        
+        rel = state_data["relationship_state"]
+        rel_impact = analysis.get("relationship_impact") or {}
+        if isinstance(rel_impact, dict):
+            trust_shift = _safe_float(rel_impact.get("trust_shift"), 0.0)
+            familiarity_shift = _safe_float(rel_impact.get("familiarity_shift"), 0.0)
+            bond_strength_shift = _safe_float(rel_impact.get("bond_strength_shift"), 0.0)
 
+            rel["trust_level"] = _clamp(
+                _safe_float(rel.get("trust_level"), 0.5) + trust_shift, 0.0, 1.0
+            )
+            rel["bond_strength"] = _clamp(
+                _safe_float(rel.get("bond_strength"), 0.5) + bond_strength_shift, 0.0, 1.0
+            )
+            rel["familiarity"] = _clamp(
+                _safe_float(rel.get("familiarity"), 0.5) + familiarity_shift, 0.0, 1.0
+            )
+            rel["total_interactions"] = rel.get("total_interactions", 0) + 1
+            
         state_data["timestamp"] = datetime.now().isoformat()
         return state_data
 
