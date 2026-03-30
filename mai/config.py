@@ -152,3 +152,11 @@ EMOTION_ANALYSIS_MODE = _env_choice(
     frozenset({"fast", "hybrid", "llm"}),
 )
 EMOTION_STATE_BLEND = _env_float_clamped("EMOTION_STATE_BLEND", 0.4, 0.0, 1.0)
+
+# ===========================================================================
+# Relationship state caps and rules
+MAX_TRUST_SHIFT_PER_TURN = float(os.getenv("MAX_TRUST_SHIFT_PER_TURN", "0.15"))
+MAX_BOND_SHIFT_PER_TURN = float(os.getenv("MAX_BOND_SHIFT_PER_TURN", "0.12"))
+MAX_FAMILIARITY_SHIFT_PER_TURN = float(os.getenv("MAX_FAMILIARITY_SHIFT_PER_TURN", "0.10"))
+HARSH_MESSAGE_TRUST_PENALTY = float(os.getenv("HARSH_MESSAGE_TRUST_PENALTY", "-0.10"))
+HARSH_MESSAGE_BOND_PENALTY = float(os.getenv("HARSH_MESSAGE_BOND_PENALTY", "-0.08"))

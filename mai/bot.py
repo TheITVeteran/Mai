@@ -134,7 +134,7 @@ async def get_mai_response(user_message: str) -> str:
             )
             if analysis:
                 new_state = _emotion_analyzer.apply_analysis_to_state(
-                    deepcopy(state), analysis
+                    deepcopy(state), analysis, user_message=user_message
                 )
                 if not save_state(new_state):
                     logger.error("Failed to save state.json")

@@ -7,9 +7,15 @@ import json
 import pytest
 
 import mai.vault.emotional_analyzer as ea_module
+from mai.config import (
+    HARSH_MESSAGE_BOND_PENALTY,
+    HARSH_MESSAGE_TRUST_PENALTY,
+)
 from mai.vault.emotional_analyzer import (
     EmotionalAnalyzer,
+    _apply_relationship_caps_and_rules,
     _coerce_secondary_emotions,
+    _detect_harsh_message,
     _extract_first_json_object,
 )
 
@@ -233,3 +239,66 @@ def test_fallback_analysis_shape():
     fb = a._fallback_analysis("hello", "boom")
     assert fb["analysis_type"] == "fallback"
     assert "primary_emotion" in fb
+
+
+def test_detect_harsh_message():
+    assert _detect_harsh_message("I hate you Mai") is True
+    assert _detect_harsh_message("Thanks for the help") is False
+
+
+def test_apply_relationship_caps_preserves_bond_strength_shift_key():
+    out = _apply_relationship_caps_and_rules(
+        "thanks",
+        {"trust_shift": 0.0, "bond_strength_shift": 0.04, "familiarity_shift": 0.0},
+    )
+    assert "bond_strength_shift" in out
+    assert "bond_shift" not in out
+    assert out["bond_strength_shift"] == pytest.approx(0.04)
+
+
+def test_harsh_message_penalty_overrides_mild_positive_shifts():
+    out = _apply_relationship_caps_and_rules(
+        "I hate you, Mai.",
+        {"trust_shift": 0.2, "bond_strength_shift": 0.2, "familiarity_shift": 0.0},
+    )
+    assert out["trust_shift"] == pytest.approx(HARSH_MESSAGE_TRUST_PENALTY)
+    assert out["bond_strength_shift"] == pytest.approx(HARSH_MESSAGE_BOND_PENALTY)
+
+
+def test_harsh_message_deepens_negative_when_model_was_too_soft():
+    out = _apply_relationship_caps_and_rules(
+        "I hate you",
+        {"trust_shift": -0.02, "bond_strength_shift": -0.02, "familiarity_shift": 0.0},
+    )
+    assert out["trust_shift"] == pytest.approx(HARSH_MESSAGE_TRUST_PENALTY)
+    assert out["bond_strength_shift"] == pytest.approx(HARSH_MESSAGE_BOND_PENALTY)
+
+
+def test_apply_analysis_updates_bond_strength_from_impact(mock_nlp_baseline):
+    a = EmotionalAnalyzer(lmstudio_url="")
+    state: dict = {
+        "relationship_state": {
+            "trust_level": 0.5,
+            "bond_strength": 0.5,
+            "familiarity": 0.5,
+            "total_interactions": 0,
+        }
+    }
+    analysis = {
+        "primary_emotion": "neutral",
+        "secondary_emotions": [],
+        "valence": 0.5,
+        "arousal": 0.5,
+        "dominance": 0.5,
+        "intensity": 0.5,
+        "confidence": 0.9,
+        "analysis_type": "lmstudio",
+        "triggers": [],
+        "relationship_impact": {
+            "trust_shift": 0.0,
+            "bond_strength_shift": 0.06,
+            "familiarity_shift": 0.0,
+        },
+    }
+    new_state = a.apply_analysis_to_state(state, analysis, user_message="you're great")
+    assert new_state["relationship_state"]["bond_strength"] == pytest.approx(0.56)

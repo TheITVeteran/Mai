@@ -17,6 +17,11 @@ from mai.config import (
     LMSTUDIO_API_URL,
     LMSTUDIO_MODEL,
     REQUEST_TIMEOUT_S,
+    MAX_TRUST_SHIFT_PER_TURN,
+    MAX_BOND_SHIFT_PER_TURN,
+    MAX_FAMILIARITY_SHIFT_PER_TURN,
+    HARSH_MESSAGE_TRUST_PENALTY,
+    HARSH_MESSAGE_BOND_PENALTY,
 )
 from mai.lmstudio import extract_assistant_text, post_chat
 from mai.vault.memory_normalize import sanitize_mood_line_for_context
@@ -69,6 +74,47 @@ def _safe_float(value: Any, default: float = 0.5) -> float:
     except (TypeError, ValueError):
         return default
 
+def _detect_harsh_message(text: str) -> bool:
+    """Check if message contains harsh language or tone."""
+    if not text:
+        return False
+    text_lower = text.lower()
+    harsh_words =[
+        "hate you", "useless", "shut up", "go away", "don't care",
+        "stupid", "dumb", "pathetic", "loser", "screw you",
+        "fuck you", "fuck off", "kill yourself",
+    ]
+    return any(word in text_lower for word in harsh_words)
+
+def _apply_relationship_caps_and_rules(
+    user_message: str,
+    relationship_impact: dict[str, Any],
+) -> dict[str, Any]:
+    """Clamp relationship shifts to MAX per turn; penalize harsh messages."""
+    trust_shift = _safe_float(relationship_impact.get("trust_shift"), 0.0)
+    bond_shift = _safe_float(relationship_impact.get("bond_strength_shift"), 0.0)
+    familiarity_shift = _safe_float(relationship_impact.get("familiarity_shift"), 0.0)
+
+    # Hard cap on magnitude
+    trust_shift = _clamp(trust_shift, -MAX_TRUST_SHIFT_PER_TURN, MAX_TRUST_SHIFT_PER_TURN)
+    bond_shift = _clamp(bond_shift, -MAX_BOND_SHIFT_PER_TURN, MAX_BOND_SHIFT_PER_TURN)
+    familiarity_shift = _clamp(familiarity_shift, -MAX_FAMILIARITY_SHIFT_PER_TURN, MAX_FAMILIARITY_SHIFT_PER_TURN)
+
+    # Harsh message: never increase trust/bond vs model output; apply at least configured penalty.
+    if _detect_harsh_message(user_message):
+        trust_shift = min(trust_shift, HARSH_MESSAGE_TRUST_PENALTY)
+        bond_shift = min(bond_shift, HARSH_MESSAGE_BOND_PENALTY)
+        logger.info(
+            "Harsh message detected; applying trust/bond floor. "
+            "trust_shift=%f, bond_strength_shift=%f",
+            trust_shift,
+            bond_shift,
+        )
+    return {
+        "trust_shift": trust_shift,
+        "bond_strength_shift": bond_shift,
+        "familiarity_shift": familiarity_shift,
+    }
 
 def _extract_first_json_object(text: str) -> Optional[str]:
     """Return the first balanced {...} substring, or None."""
@@ -559,7 +605,7 @@ Example shape:
         return confidence >= 0.55
 
     def apply_analysis_to_state(
-        self, state_data: StateData, analysis: EmotionAnalysis
+        self, state_data: StateData, analysis: EmotionAnalysis, user_message: str = ""
     ) -> StateData:
         if not analysis or not isinstance(analysis, dict):
             return state_data
@@ -645,9 +691,11 @@ Example shape:
         rel = state_data["relationship_state"]
         rel_impact = analysis.get("relationship_impact") or {}
         if isinstance(rel_impact, dict):
-            trust_shift = _safe_float(rel_impact.get("trust_shift"), 0.0)
-            familiarity_shift = _safe_float(rel_impact.get("familiarity_shift"), 0.0)
-            bond_strength_shift = _safe_float(rel_impact.get("bond_strength_shift"), 0.0)
+            # Apply caps and rules
+            capped_impact = _apply_relationship_caps_and_rules(user_message, rel_impact)
+            trust_shift = _safe_float(capped_impact.get("trust_shift"), 0.0)
+            familiarity_shift = _safe_float(capped_impact.get("familiarity_shift"), 0.0)
+            bond_strength_shift = _safe_float(capped_impact.get("bond_strength_shift"), 0.0)
 
             rel["trust_level"] = _clamp(
                 _safe_float(rel.get("trust_level"), 0.5) + trust_shift, 0.0, 1.0
