@@ -33,6 +33,7 @@ from mai.vault import (
     save_memory,
     save_state,
 )
+from mai.vault.fact_learner import merge_learned_facts_from_user_message
 from mai.vault.emotional_analyzer import EmotionalAnalyzer
 from mai.logging_config import configure_logging
 
@@ -118,6 +119,7 @@ async def get_mai_response(user_message: str) -> str:
         mai_response = _trim_discord(mai_response)
 
         memory = add_interaction(memory, user_message, mai_response)
+        memory = merge_learned_facts_from_user_message(memory, user_message)
         if not save_memory(memory):
             logger.error("Failed to save memory.json")
 

@@ -73,6 +73,10 @@ BACKUP_FILE = VAULT_PATH / "memory.backup.json"
 
 MAX_INTERACTIONS = _env_int("MAX_INTERACTIONS", 10)
 
+# Auto-learn declarative user facts into memory.json → long_term_memory.facts_learned
+FACT_LEARN_ENABLED = _env_bool("FACT_LEARN_ENABLED", True)
+MAX_FACTS_LEARNED = max(5, min(500, _env_int("MAX_FACTS_LEARNED", 80)))
+
 # ---------------------------------------------------------------------------
 # LM Studio / HTTP
 # ---------------------------------------------------------------------------
