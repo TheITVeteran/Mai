@@ -14,7 +14,7 @@ Top-level object. Main sections:
 | `short_term_memory.recent_interactions` | array of objects | Each turn: `timestamp`, `user_message`, `mai_response`, optional `user` |
 | `short_term_memory.current_focus` | string (optional) | Short topic hint for context |
 | `long_term_memory` | object | Durable extracted knowledge |
-| `long_term_memory.facts_learned` | array | Items are `{ "fact": "..." }` objects or legacy strings. Auto-learned rows may include `source` (`"auto"`), `learned_at`, `last_seen` (ISO), `seen_count` (int) |
+| `long_term_memory.facts_learned` | array | Items are `{ "fact": "..." }` objects or legacy strings |
 | `last_updated` | string (optional) | ISO timestamp; set when saving |
 
 **Normalisation:** If `short_term_memory` or `long_term_memory` is not an object, it is replaced with `{}`. `recent_interactions` / `facts_learned` lists are rebuilt: non-dict interaction rows are dropped; non-list `facts_learned` becomes `[]`.

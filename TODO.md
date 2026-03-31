@@ -2,7 +2,7 @@
 
 **Keeping it current:** When something ships, turn its checkbox **`[ ]` → `[x]`** and add a short pointer (file/module) if useful. Leave completed lines in place until a section feels crowded—then move that block to the bottom under a “Done” heading or trim it. Open work stays **`[ ]`**.
 
-Brief notes on what already exists: emotional analysis runs after each reply in `mai/bot.py`, results are merged into `state.json` via `EmotionalAnalyzer.apply_analysis_to_state`, and `build_context_string` feeds emotion/mood/`mai_felt_tone`, **`relationship_state`** (trust / bond / familiarity), plus **`facts_learned`** (including auto-learned rows from `mai/vault/fact_learner.py`). Confidence gating is implemented in `should_update_state()`. **`relationship_impact`** deltas are capped in **`emotional_analyzer`**; harsh user text applies configured trust/bond floors.
+Brief notes on what already exists: emotional analysis runs after each reply in `mai/bot.py`, results are merged into `state.json` via `EmotionalAnalyzer.apply_analysis_to_state`, and `build_context_string` feeds emotion/mood/`mai_felt_tone`, **`relationship_state`** (trust / bond / familiarity), plus `facts_learned` into the prompt. Confidence gating is implemented in `should_update_state()`. **`relationship_impact`** deltas are capped in **`emotional_analyzer`**; harsh user text applies configured trust/bond floors.
 
 ---
 
@@ -35,10 +35,10 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 
 #### Auto-learn facts
 
-- [x] Detect declarative user facts (“I work in…”, “I have a cat…”) — heuristics in `mai/vault/fact_learner.py` (`FACT_LEARN_ENABLED`)
-- [x] Store in **`memory.json`** under existing `long_term_memory.facts_learned` (wired in `mai/bot.py` after each turn)
-- [x] Reference learned facts in responses — `build_context_string` lists last few facts (validate tone in real chats)
-- [x] Track recency/frequency — `seen_count`, `last_seen` on auto-learned dict rows; cap `MAX_FACTS_LEARNED`
+- [ ] Detect declarative user facts (“I work in…”, “I have a cat…”)
+- [ ] Store in **`memory.json`** under existing `long_term_memory.facts_learned` (avoid duplicating a second “semantic” store unless you migrate)
+- [ ] Reference learned facts in responses (context already lists last few facts — validate quality)
+- [ ] Track recency/frequency on facts if needed
 
 #### Personality drift (after trust is stable)
 
