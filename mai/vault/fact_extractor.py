@@ -83,6 +83,12 @@ def extract_facts_nlp(user_message: str) -> list[str]:
         )
         if match:
             facts.append(f"Learning {match.group().strip()}")
+    
+    # Gender / pronouns
+    if re.search(r"i\s+(?:am\s+)?a\s+woman|she/her|i'm\s+a\s+girl|female", text_lower):
+        facts.append("Uses she/her pronouns")
+    if re.search(r"i\s+(?:am\s+)?a\s+man|he/him|i'm\s+a\s+guy|male", text_lower):
+        facts.append("Uses he/him pronouns")
 
     return facts
 
