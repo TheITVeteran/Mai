@@ -1,66 +1,49 @@
-# Mai - Discord AI Companion Bot
+# Mai
 
-A Discord bot that feels like talking to a real person with genuine emotions, built with Discord.py and a pluggable local/remote LLM (LM Studio by default).
+**Mai** is the name of the companion who lives in this bot — warm, a little dramatic, protective when she cares about you, and happiest when the conversation feels like texts between real friends, not a demo. She answers on Discord; what you’re running here is the bridge that gives her a voice, a memory folder, and enough emotional context that she can notice when something landed wrong or when you’re having a good day.
 
-## Features
+This repository is her **Discord + LLM stack** (Python 3.10+, discord.py): she reads your message, pulls in recent turns and what she’s learned about you, checks in with a small “how is she feeling?” state in the background, and writes back once — as herself.
 
-- 🤖 Powered by local LMStudio (privacy-first)
-- 💕 Emotional, personality-driven responses
-- 🎭 Real character depth (protective, playful, vulnerable)
-- 🎮 Discord-native interaction
-- 🚀 Built for iterative development
+## What works today
 
-## Current Status (MVP)
+- **Discord** — Replies in allowed channels/DMs (`mai/bot.py`), typing indicator, message cap.
+- **Conversation recall** — Short-term turns in `memory.json` (`recent_interactions`); context string for the next reply (`mai/vault/context.py`).
+- **Who you are to her** — Declarative facts (NLP + optional LLM) merged into `facts_learned` with dedupe and a rolling cap (`mai/vault/fact_extractor.py`, `mai/vault/writer.py`).
+- **Emotional & relationship layer** — After each exchange, hybrid NLP + optional deep LLM analysis updates `state.json`: mood, stance (`mai_felt_tone`), `relationship_state` (trust, bond, familiarity), plus caps and harsh-message floors (`mai/vault/emotional_analyzer.py`).
+- **Persona** — `personal` vs `public` system prompts (`mai/personality.py`, `MAI_PERSONA`).
+- **LLM backends** — Default **LM Studio** (`/api/v1/chat`); switch to **OpenAI-compatible** URLs with `LLM_PROVIDER=openai_compatible` (`mai/llm/`).
 
-- [x] Discord bot responds naturally in chat
-- [x] LMStudio integration
-- [x] Personality system
-- [x] Emotional responses
-- [ ] Conversation history/memory
-- [ ] Long-term memory
-- [ ] Advanced features (moods, relationships, etc.)
+Suggested local model: **L3-8B-Stheno-v3.2** (GGUF) — [Hugging Face: Lewdiculous/L3-8B-Stheno-v3.2-GGUF-IQ-Imatrix](https://huggingface.co/Lewdiculous/L3-8B-Stheno-v3.2-GGUF-IQ-Imatrix) — load in LM Studio or any compatible server.
 
-## Setup
+## Run her
 
-1. Clone the repo
-2. Create virtual environment: `python3 -m venv .venv`
-3. Activate: `source .venv/bin/activate`
-4. Install: `pip install -r requirements.txt`
-5. Copy `.env.example` to `.env` and set `DISCORD_TOKEN`
-6. Start LMStudio locally
-7. Run: `python mai_bot.py`
+1. Clone the repo, create a venv, `pip install -r requirements.txt`
+2. Copy `.env.example` → `.env` — set **`DISCORD_TOKEN`**, **`VAULT_PATH`** (directory for `memory.json` / `state.json`)
+3. Run your LLM (e.g. LM Studio on the URL in `.env`)
+4. **`python mai_bot.py`** (same as `python -m mai.bot`)
 
-## Tech Stack
+## Configure (high level)
 
-- **LMStudio** - Local LLM inference (privacy & control)
-- **Discord.py** - Discord bot framework
-- **Python 3.10+** - Core language
+| Area | Env / notes |
+|------|----------------|
+| Discord | `DISCORD_ALLOWED_CHANNEL_IDS`, `DISCORD_ALLOW_DMS` |
+| LLM | `LLM_PROVIDER`, `LLM_API_URL`, `LLM_MODEL` — or legacy `LMSTUDIO_*` |
+| Vault | `VAULT_PATH`, `MAX_INTERACTIONS`, `MAX_FACTS_LEARNED` |
+| Emotion | `EMOTION_ANALYSIS_MODE` (`fast` / `hybrid` / `llm`), relationship cap envs in `mai/config.py` |
 
-## Model
+Schema reference: **`mai/vault/SCHEMA.md`**. Open tasks and ideas: **`TODO.md`**.
 
-- **L3-8B-Stheno-v3.2** (GGUF IQ-Imatrix) — download GGUF files from [Hugging Face: `Lewdiculous/L3-8B-Stheno-v3.2-GGUF-IQ-Imatrix`](https://huggingface.co/Lewdiculous/L3-8B-Stheno-v3.2-GGUF-IQ-Imatrix), then load the `.gguf` you want in LM Studio.
+## Project layout
 
-## Layout
-
-- `mai_bot.py` — run the bot (`python mai_bot.py` or `python -m mai.bot`)
-- `mai/` — application package
-  - `config.py` — paths, LLM + Discord, limits (env-overridable; `LLM_*` with `LMSTUDIO_*` legacy fallbacks)
-  - `llm/` — provider-agnostic chat (`ChatParams`, `get_chat_provider()`; default `lmstudio`, optional `openai_compatible`)
-  - `personality.py` — system prompts (`personal` vs `public`, switch with `MAI_PERSONA`)
-  - `bot.py` — Discord client and message flow
-  - `vault/` — `memory.json` / `state.json` I/O, normalisation, context string (`mai/vault/SCHEMA.md`)
-  - `lmstudio.py` — LM Studio wire format (`post_chat` + `extract_assistant_text`), used by the LM Studio provider
-- `scripts/test_lmstudio.py` — quick LM Studio POST smoke test
-- `.env.example` — environment template (safe to commit)
-- `.env` — secrets (gitignored)
-
-## Next Steps
-
-- [ ] Add conversation memory (short-term)
-- [ ] Add JSON file persistence (long-term)
-- [ ] Emotional state tracking
-- [ ] Better prompt engineering
-- [ ] Database integration (later)
+- `mai_bot.py` — entrypoint
+- `mai/bot.py` — Discord loop, chat, vault saves, analysis, facts
+- `mai/config.py` — environment
+- `mai/llm/` — `ChatParams`, `get_chat_provider()` (LM Studio vs OpenAI-style)
+- `mai/personality.py` — Mai’s system prompts
+- `mai/vault/` — load/save, normalize, context, emotional analyzer, fact extraction
+- `mai/lmstudio.py` — LM Studio HTTP + response parsing
+- `tests/` — pytest
+- `scripts/test_lmstudio.py` — smoke test against a running LM Studio server
 
 ## Lint
 
@@ -68,7 +51,7 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
 flake8 mai tests scripts mai_bot.py
 ```
 
-Config: `.flake8` (100-char lines; `E402` allowed only where `load_dotenv()` must run before imports).
+Uses `.flake8` at repo root.
 
 ## License
 

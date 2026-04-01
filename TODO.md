@@ -2,7 +2,7 @@
 
 **Keeping it current:** When something ships, turn its checkbox **`[ ]` → `[x]`** and add a short pointer (file/module) if useful. Leave completed lines in place until a section feels crowded—then move that block to the bottom under a “Done” heading or trim it. Open work stays **`[ ]`**.
 
-Brief notes on what already exists: emotional analysis runs after each reply in `mai/bot.py`, results are merged into `state.json` via `EmotionalAnalyzer.apply_analysis_to_state`, and `build_context_string` feeds emotion/mood/`mai_felt_tone`, **`relationship_state`** (trust / bond / familiarity), plus `facts_learned` into the prompt. Confidence gating is implemented in `should_update_state()`. **`relationship_impact`** deltas are capped in **`emotional_analyzer`**; harsh user text applies configured trust/bond floors.
+**Snapshot (Mar 2026):** Discord reply path loads/saves **`memory.json`** and **`state.json`**. `build_context_string` feeds emotion, mood, `mai_felt_tone`, **`relationship_state`**, and **`facts_learned`**. `EmotionalAnalyzer.apply_analysis_to_state` applies **`relationship_impact`** with env caps and harsh-message floors. Facts: **`extract_facts`** (NLP + LLM) + **`add_facts`** after each user message. Chat completions go through **`mai/llm`** (default LM Studio, optional OpenAI-compatible API).
 
 ---
 
@@ -10,8 +10,8 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 
 ### Emotional system
 
-- [X] End-to-end test on Discord: message → analysis → `state.json` → next turn sees updated context
-- [ ] Harden / verify LM Studio timeouts and offline path in the analyzer (NLP fallback already exists)
+- [x] End-to-end test on Discord: message → analysis → `state.json` → next turn sees updated context
+- [ ] Harden / verify LLM timeouts and offline path in the analyzer (NLP fallback already exists)
 - [ ] Optional: structured logging of recent analyses (file or logger), not only prints on failure
 - [ ] Review whether mood vs. primary emotion updates should use different confidence rules
 
@@ -30,15 +30,15 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 
 - [x] Persistent **`relationship_state`** in `state.json`: `trust_level`, `bond_strength`, `familiarity`, `total_interactions` — defaults 0.5 / 0.5 / 0.5, clamped 0–1 (`mai/vault/emotional_analyzer.py` `apply_analysis_to_state`)
 - [x] Apply analyzer **`relationship_impact`** shifts into that block (same place)
-- [x] **Caps + rules:** env max shift per turn; optional trust/bond **decrease** heuristics on harsh/rude messages (today: whatever the LM/NLP puts in `relationship_impact`)
+- [x] **Caps + rules:** env max shift per turn; harsh-message trust/bond floors (`_detect_harsh_message`, `_apply_relationship_caps_and_rules`)
 - [x] Surface relationship lightly in **`build_context_string`** (`mai/vault/context.py`) — prose + percentages when `relationship_state` exists
 
 #### Auto-learn facts
 
-- [ ] Detect declarative user facts (“I work in…”, “I have a cat…”)
-- [ ] Store in **`memory.json`** under existing `long_term_memory.facts_learned` (avoid duplicating a second “semantic” store unless you migrate)
-- [ ] Reference learned facts in responses (context already lists last few facts — validate quality)
-- [ ] Track recency/frequency on facts if needed
+- [x] Detect declarative user facts — **`mai/vault/fact_extractor.py`** (**NLP** heuristics + **LLM** when provider available)
+- [x] Store in **`memory.json`** → `long_term_memory.facts_learned` — **`mai/vault/writer.py`** `add_facts` (dedupe, trim with **`MAX_FACTS_LEARNED`**); wired in **`mai/bot.py`**
+- [x] Reference learned facts in responses — **`build_context_string`** shows last few facts
+- [ ] Richer recency/frequency (e.g. `seen_count` / `last_seen` reinforcement) if you want stronger “she remembers how often you said X”
 
 #### Personality drift (after trust is stable)
 
@@ -47,8 +47,8 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 
 ### Testing & validation
 
-- [x] Unit tests (`tests/`, pytest): vault reader/writer/context + `emotional_analyzer` (NLP mocked, LM path mocked)
-- [ ] Memory persistence: restart bot, recall recent interaction
+- [x] Unit tests (`tests/`, pytest): vault reader/writer/context + `emotional_analyzer` + LLM providers (mocked)
+- [ ] Memory persistence: restart bot, sanity-check recall (file-backed; validate on your vault path)
 - [x] `state.json` + `recent_changes` (+ `relationship_state`) exercised on real Discord traffic
 - [ ] Broader integration / regression beyond unit scope
 
@@ -82,18 +82,20 @@ Brief notes on what already exists: emotional analysis runs after each reply in 
 
 ## Technical debt
 
-- [x] Shared LM Studio HTTP helper (`mai/lmstudio.post_chat` — bot, emotional analyzer, `scripts/test_lmstudio.py`)
+- [x] Shared LM Studio HTTP helper (`mai/lmstudio.post_chat` — used by LM Studio provider)
+- [x] Provider-agnostic chat layer (`mai/llm/`, `LLM_PROVIDER` / `openai_compatible`)
 - [x] Consistent logging (`mai/logging_config.py`, `LOG_LEVEL`, vault + bot use `logging`)
-- [x] Document vault schema (`mai/vault/SCHEMA.md` + README layout)
+- [x] Document vault schema (`mai/vault/SCHEMA.md` + README)
 - [x] Validate / migrate on load (`mai/vault/memory_normalize.py` from `reader.load_memory` / `load_state`)
+- [x] Flake8 config (`.flake8`)
 
 ---
 
 ## High-priority unblocks
 
-1. **Emotional persistence** — Does state carry across sessions in a way she actually uses?
-2. **Trust / bond** — **`relationship_state`** in `state.json` updates from `relationship_impact`; tune caps/rules if it feels too fast/slow or never punishes rudeness
-3. **Facts** — Are user facts extracted and recalled (`facts_learned`)?
+1. **Emotional persistence** — Tune whether `state.json` + context prose changes how she *feels* across sessions (not only metrics).
+2. **Trust / bond** — Caps/floors exist; dial env vars if it feels too fast/slow.
+3. **Facts** — Pipeline is live; tune **`fact_extractor`** / prompts / dedupe so what she stores matches how you want to be known.
 4. **Impact** — Do trust/mood/facts change behavior measurably, not only the prompt block?
 
 Use the convention at the top of this file when you close out tasks.
