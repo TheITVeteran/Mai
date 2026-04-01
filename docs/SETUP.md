@@ -1,0 +1,44 @@
+# Setup
+
+## Requirements
+
+- Python **3.10+**
+- A [Discord bot](https://discord.com/developers/applications) token
+- A running LLM endpoint (default: [LM Studio](https://lmstudio.ai/) local server) or any OpenAI-compatible chat API
+
+## Install
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## Configure
+
+1. Copy **`.env.example`** → **`.env`**
+2. Set **`DISCORD_TOKEN`**
+3. Set **`VAULT_PATH`** to a folder where `memory.json` and `state.json` should live (must exist or be creatable)
+4. Point **`LLM_API_URL`** / **`LLM_MODEL`** at your model (or use the `LMSTUDIO_*` variables — see `.env.example`)
+5. For OpenAI-style servers only: **`LLM_PROVIDER=openai_compatible`** and a full URL ending in `/v1/chat/completions`, plus **`LLM_API_KEY`** if required
+
+## Portrait
+
+For the image on the main **README**, save her picture as **`assets/Mai.png`** (create the `assets` folder if needed).
+
+## Run
+
+```bash
+python mai_bot.py
+```
+
+Equivalent: **`python -m mai.bot`**
+
+Start only **one** bot process per token (duplicate processes can double-reply).
+
+## Model suggestion
+
+**L3-8B-Stheno-v3.2** (GGUF):  
+https://huggingface.co/Lewdiculous/L3-8B-Stheno-v3.2-GGUF-IQ-Imatrix  
+
+Smoke-test LM Studio HTTP: **`scripts/test_lmstudio.py`**

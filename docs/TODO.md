@@ -85,7 +85,7 @@
 - [x] Shared LM Studio HTTP helper (`mai/lmstudio.post_chat` — used by LM Studio provider)
 - [x] Provider-agnostic chat layer (`mai/llm/`, `LLM_PROVIDER` / `openai_compatible`)
 - [x] Consistent logging (`mai/logging_config.py`, `LOG_LEVEL`, vault + bot use `logging`)
-- [x] Document vault schema (`mai/vault/SCHEMA.md` + README)
+- [x] Document vault schema (`mai/vault/SCHEMA.md` + `docs/README.md`)
 - [x] Validate / migrate on load (`mai/vault/memory_normalize.py` from `reader.load_memory` / `load_state`)
 - [x] Flake8 config (`.flake8`)
 
