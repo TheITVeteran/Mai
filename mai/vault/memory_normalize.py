@@ -86,7 +86,7 @@ def normalize_memory_data(data: MemoryData) -> MemoryData:
 
 
 def normalize_state_data(data: StateData) -> StateData:
-    """Ensure ``state.json`` has a dict ``emotional_state`` with list ``recent_changes``."""
+    """Ensure state has dict ``emotional_state`` with list ``recent_changes``."""
     out: StateData = dict(data)
 
     es_raw = out.get("emotional_state")

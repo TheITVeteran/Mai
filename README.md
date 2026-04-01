@@ -1,6 +1,6 @@
 # Mai - Discord AI Companion Bot
 
-A Discord bot that feels like talking to a real person with genuine emotions, built with LMStudio and Discord.py.
+A Discord bot that feels like talking to a real person with genuine emotions, built with Discord.py and a pluggable local/remote LLM (LM Studio by default).
 
 ## Features
 
@@ -44,11 +44,12 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
 
 - `mai_bot.py` — run the bot (`python mai_bot.py` or `python -m mai.bot`)
 - `mai/` — application package
-  - `config.py` — paths, LM Studio, Discord, limits (env-overridable)
+  - `config.py` — paths, LLM + Discord, limits (env-overridable; `LLM_*` with `LMSTUDIO_*` legacy fallbacks)
+  - `llm/` — provider-agnostic chat (`ChatParams`, `get_chat_provider()`; default `lmstudio`, optional `openai_compatible`)
   - `personality.py` — system prompts (`personal` vs `public`, switch with `MAI_PERSONA`)
   - `bot.py` — Discord client and message flow
   - `vault/` — `memory.json` / `state.json` I/O, normalisation, context string (`mai/vault/SCHEMA.md`)
-  - `lmstudio.py` — shared `post_chat()` + `extract_assistant_text()` for LM Studio
+  - `lmstudio.py` — LM Studio wire format (`post_chat` + `extract_assistant_text`), used by the LM Studio provider
 - `scripts/test_lmstudio.py` — quick LM Studio POST smoke test
 - `.env.example` — environment template (safe to commit)
 - `.env` — secrets (gitignored)
@@ -60,6 +61,14 @@ A Discord bot that feels like talking to a real person with genuine emotions, bu
 - [ ] Emotional state tracking
 - [ ] Better prompt engineering
 - [ ] Database integration (later)
+
+## Lint
+
+```bash
+flake8 mai tests scripts mai_bot.py
+```
+
+Config: `.flake8` (100-char lines; `E402` allowed only where `load_dotenv()` must run before imports).
 
 ## License
 

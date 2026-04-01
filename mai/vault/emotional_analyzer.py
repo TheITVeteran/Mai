@@ -14,8 +14,11 @@ from typing import Any, Optional
 from mai.config import (
     EMOTION_ANALYSIS_MODE,
     EMOTION_STATE_BLEND,
-    LMSTUDIO_API_URL,
-    LMSTUDIO_MODEL,
+    LLM_MAX_OUTPUT_TOKENS,
+    LLM_MODEL,
+    LLM_REPEAT_PENALTY,
+    LLM_TEMPERATURE,
+    LLM_USE_SYSTEM_PROMPT,
     REQUEST_TIMEOUT_S,
     MAX_TRUST_SHIFT_PER_TURN,
     MAX_BOND_SHIFT_PER_TURN,
@@ -23,7 +26,9 @@ from mai.config import (
     HARSH_MESSAGE_TRUST_PENALTY,
     HARSH_MESSAGE_BOND_PENALTY,
 )
-from mai.lmstudio import extract_assistant_text, post_chat
+from mai.llm import ChatParams, get_chat_provider
+from mai.llm.types import ChatProvider
+from mai.llm.lmstudio_provider import LMStudioProvider
 from mai.vault.memory_normalize import sanitize_mood_line_for_context
 from mai.vault.types import EmotionAnalysis, StateData, TurnRecord
 
@@ -74,17 +79,19 @@ def _safe_float(value: Any, default: float = 0.5) -> float:
     except (TypeError, ValueError):
         return default
 
+
 def _detect_harsh_message(text: str) -> bool:
     """Check if message contains harsh language or tone."""
     if not text:
         return False
     text_lower = text.lower()
-    harsh_words =[
+    harsh_words = [
         "hate you", "useless", "shut up", "go away", "don't care",
         "stupid", "dumb", "pathetic", "loser", "screw you",
         "fuck you", "fuck off", "kill yourself",
     ]
     return any(word in text_lower for word in harsh_words)
+
 
 def _apply_relationship_caps_and_rules(
     user_message: str,
@@ -96,9 +103,17 @@ def _apply_relationship_caps_and_rules(
     familiarity_shift = _safe_float(relationship_impact.get("familiarity_shift"), 0.0)
 
     # Hard cap on magnitude
-    trust_shift = _clamp(trust_shift, -MAX_TRUST_SHIFT_PER_TURN, MAX_TRUST_SHIFT_PER_TURN)
-    bond_shift = _clamp(bond_shift, -MAX_BOND_SHIFT_PER_TURN, MAX_BOND_SHIFT_PER_TURN)
-    familiarity_shift = _clamp(familiarity_shift, -MAX_FAMILIARITY_SHIFT_PER_TURN, MAX_FAMILIARITY_SHIFT_PER_TURN)
+    trust_shift = _clamp(
+        trust_shift, -MAX_TRUST_SHIFT_PER_TURN, MAX_TRUST_SHIFT_PER_TURN
+    )
+    bond_shift = _clamp(
+        bond_shift, -MAX_BOND_SHIFT_PER_TURN, MAX_BOND_SHIFT_PER_TURN
+    )
+    familiarity_shift = _clamp(
+        familiarity_shift,
+        -MAX_FAMILIARITY_SHIFT_PER_TURN,
+        MAX_FAMILIARITY_SHIFT_PER_TURN,
+    )
 
     # Harsh message: never increase trust/bond vs model output; apply at least configured penalty.
     if _detect_harsh_message(user_message):
@@ -115,6 +130,7 @@ def _apply_relationship_caps_and_rules(
         "bond_strength_shift": bond_shift,
         "familiarity_shift": familiarity_shift,
     }
+
 
 def _extract_first_json_object(text: str) -> Optional[str]:
     """Return the first balanced {...} substring, or None."""
@@ -147,10 +163,28 @@ def _coerce_secondary_emotions(data: dict[str, Any]) -> list[str]:
 class EmotionalAnalyzer:
     """Hybrid NLP + LLM emotional analyzer with graceful degradation."""
 
-    def __init__(self, lmstudio_url: Optional[str] = None, model: Optional[str] = None):
-        self.lmstudio_url = (lmstudio_url or LMSTUDIO_API_URL or "").strip()
-        self.model = model or LMSTUDIO_MODEL
+    def __init__(
+        self,
+        llm: Optional[ChatProvider] = None,
+        *,
+        lmstudio_url: Optional[str] = None,
+        model: Optional[str] = None,
+    ):
+        if llm is not None:
+            self._llm = llm
+        elif lmstudio_url is not None:
+            self._llm = LMStudioProvider(
+                api_url=lmstudio_url,
+                default_model=model or LLM_MODEL,
+            )
+        else:
+            self._llm = get_chat_provider()
+        self.model = model or LLM_MODEL
         self.use_deep_analysis = False
+
+    @property
+    def llm(self) -> ChatProvider:
+        return self._llm
 
     def _sanitize_message(self, raw: Optional[str], max_chars: int = _MAX_USER_CHARS) -> str:
         if raw is None:
@@ -197,7 +231,7 @@ class EmotionalAnalyzer:
         Analyze affect for the user message + Mai's reply.
 
         ``use_deep_analysis``:
-        - ``True`` / ``False``: force LM Studio on or off (if URL set).
+        - ``True`` / ``False``: force LLM on or off (if provider configured).
         - ``None``: use ``EMOTION_ANALYSIS_MODE`` (fast / hybrid / llm).
         """
         user_message = self._sanitize_message(user_message)
@@ -211,13 +245,13 @@ class EmotionalAnalyzer:
 
             run_llm: bool
             if use_deep_analysis is True:
-                run_llm = bool(self.lmstudio_url)
+                run_llm = self._llm.is_available()
             elif use_deep_analysis is False:
                 run_llm = False
             elif EMOTION_ANALYSIS_MODE == "llm":
-                run_llm = bool(self.lmstudio_url)
+                run_llm = self._llm.is_available()
             elif EMOTION_ANALYSIS_MODE == "hybrid":
-                run_llm = bool(self.lmstudio_url) and self._should_deep_analyze(
+                run_llm = self._llm.is_available() and self._should_deep_analyze(
                     user_message, analysis
                 )
             else:
@@ -443,17 +477,21 @@ class EmotionalAnalyzer:
                 conversation_history,
                 current_state,
             )
-            analysis_text = self._query_lmstudio(prompt)
+            analysis_text = self._query_llm(prompt)
             if not analysis_text:
                 return None
             analysis = self._parse_analysis(analysis_text)
             if analysis:
                 normalized = self._normalize_analysis(analysis)
-                normalized["analysis_type"] = "lmstudio"
+                normalized["analysis_type"] = (
+                    "lmstudio"
+                    if self._llm.kind == "lmstudio"
+                    else "openai_compatible"
+                )
                 return normalized
             return None
         except Exception as e:
-            logger.warning("Deep LM Studio analysis failed: %s", e)
+            logger.warning("Deep LLM analysis failed: %s", e)
             return None
 
     def _build_analysis_prompt(
@@ -524,15 +562,18 @@ Example shape:
 {{"user_primary_emotion":"bittersweet","user_secondary_emotions":["relief","exhaustion"],"mai_felt_tone":"warm, protective, a little worried","mood_digest":"I want to hold them close — they sound wiped but brave.","valence":0.2,"arousal":0.55,"dominance":0.45,"intensity":0.65,"confidence":0.78,"triggers":["struggling","talking helps"],"sarcasm_detected":false,"vulnerability_markers":["struggling lately"],"trust_indicators":["talking to you helps"],"relationship_impact":{{"trust_shift":0.06,"familiarity_shift":0.03,"bond_strength_shift":0.07}},"emotional_arc":"vulnerability met with reassurance","analysis_notes":"High intimacy cue; stable positive valence."}}
 """
 
-    def _query_lmstudio(self, prompt: str) -> str:
-        """POST to LM Studio; raises on HTTP/JSON/shape errors."""
-        payload = {"model": self.model, "input": prompt}
-        data = post_chat(
-            self.lmstudio_url,
-            payload,
-            timeout=float(REQUEST_TIMEOUT_S),
+    def _query_llm(self, prompt: str) -> str:
+        """Run configured chat provider; raises on HTTP/JSON/shape errors."""
+        params = ChatParams(
+            model=self.model,
+            user_prompt=prompt,
+            system_prompt=None,
+            use_system_prompt_field=LLM_USE_SYSTEM_PROMPT,
+            max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
+            temperature=LLM_TEMPERATURE,
+            repeat_penalty=LLM_REPEAT_PENALTY,
         )
-        return extract_assistant_text(data)
+        return self._llm.complete(params, timeout=float(REQUEST_TIMEOUT_S))
 
     def _parse_analysis(self, analysis_text: str) -> Optional[EmotionAnalysis]:
         if not analysis_text or not str(analysis_text).strip():
@@ -600,7 +641,7 @@ Example shape:
     def should_update_state(self, analysis: EmotionAnalysis) -> bool:
         confidence = _safe_float(analysis.get("confidence"), 0.0)
         at = str(analysis.get("analysis_type", ""))
-        if at in ("lmstudio", "combined"):
+        if at in ("lmstudio", "openai_compatible", "combined"):
             return confidence >= 0.45
         return confidence >= 0.55
 
@@ -626,7 +667,7 @@ Example shape:
         conf = _safe_float(analysis.get("confidence"), 0.0)
         at = str(analysis.get("analysis_type", ""))
         new_primary = str(analysis.get("primary_emotion", "neutral"))
-        if conf >= 0.52 or at in ("lmstudio", "combined"):
+        if conf >= 0.52 or at in ("lmstudio", "openai_compatible", "combined"):
             es["primary_emotion"] = new_primary
         else:
             es["primary_emotion"] = es.get("primary_emotion", new_primary)
@@ -677,7 +718,7 @@ Example shape:
 
         if len(es["recent_changes"]) > 20:
             es["recent_changes"] = es["recent_changes"][-20:]
-        
+
         if "relationship_state" not in state_data or not isinstance(
             state_data["relationship_state"], dict
         ):
@@ -687,7 +728,7 @@ Example shape:
                 "familiarity": 0.5,
                 "total_interactions": 0,
             }
-        
+
         rel = state_data["relationship_state"]
         rel_impact = analysis.get("relationship_impact") or {}
         if isinstance(rel_impact, dict):
@@ -707,7 +748,7 @@ Example shape:
                 _safe_float(rel.get("familiarity"), 0.5) + familiarity_shift, 0.0, 1.0
             )
             rel["total_interactions"] = rel.get("total_interactions", 0) + 1
-            
+
         state_data["timestamp"] = datetime.now().isoformat()
         return state_data
 
@@ -729,7 +770,7 @@ if __name__ == "__main__":
             result["analysis_type"],
         )
 
-    logger.info("Deep LM Studio analysis (optional):")
+    logger.info("Deep LLM analysis (optional):")
     result = analyzer.analyze_interaction(
         test, "I'm here for you.", use_deep_analysis=True
     )
@@ -740,7 +781,10 @@ if __name__ == "__main__":
             result["valence"],
             result["analysis_type"],
         )
-        if result.get("analysis_type") != "lmstudio" and not result.get("combined"):
-            logger.info("  (LM Studio did not return a mergeable result; NLP only.)")
+        if result.get("analysis_type") not in (
+            "lmstudio",
+            "openai_compatible",
+        ) and not result.get("combined"):
+            logger.info("  (LLM did not return a mergeable result; NLP only.)")
     else:
         logger.warning("  No result (unexpected failure)")

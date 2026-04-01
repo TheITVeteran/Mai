@@ -5,7 +5,13 @@ import logging
 import shutil
 from datetime import datetime
 
-from mai.config import BACKUP_FILE, MAX_INTERACTIONS, MEMORY_FILE, STATE_FILE
+from mai.config import (
+    BACKUP_FILE,
+    MAX_FACTS_LEARNED,
+    MAX_INTERACTIONS,
+    MEMORY_FILE,
+    STATE_FILE,
+)
 from mai.vault.types import MemoryData, StateData
 
 logger = logging.getLogger(__name__)
@@ -32,6 +38,55 @@ def add_interaction(
 
     if len(stm["recent_interactions"]) > MAX_INTERACTIONS:
         stm["recent_interactions"] = stm["recent_interactions"][-MAX_INTERACTIONS:]
+
+    memory_data["last_updated"] = datetime.now().isoformat()
+    return memory_data
+
+
+def add_facts(
+    memory_data: MemoryData,
+    new_facts: list[str],
+) -> MemoryData:
+    """Add new facts to long-term memory, avoiding duplicates."""
+    if not new_facts:
+        return memory_data
+
+    if "long_term_memory" not in memory_data:
+        memory_data["long_term_memory"] = {}
+    ltm = memory_data["long_term_memory"]
+
+    if "facts_learned" not in ltm:
+        ltm["facts_learned"] = []
+
+    existing_facts = ltm["facts_learned"]
+    if not isinstance(existing_facts, list):
+        existing_facts = []
+        ltm["facts_learned"] = existing_facts
+
+    # Dedupe
+    existing_texts = {
+        f.get("fact", "").lower() for f in existing_facts if isinstance(f, dict)
+    }
+
+    for fact in new_facts:
+        fact_lower = fact.lower().strip()
+        # Skip if similar fact exists
+        if not any(
+            fact_lower in existing or existing in fact_lower
+            for existing in existing_texts
+        ):
+            existing_facts.append(
+                {
+                    "fact": fact,
+                    "timestamp": datetime.now().isoformat(),
+                    "source": "user_message",
+                }
+            )
+            existing_texts.add(fact_lower)
+            logger.info("Learned fact: %s", fact)
+
+    if len(existing_facts) > MAX_FACTS_LEARNED:
+        ltm["facts_learned"] = existing_facts[-MAX_FACTS_LEARNED:]
 
     memory_data["last_updated"] = datetime.now().isoformat()
     return memory_data

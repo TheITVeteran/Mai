@@ -13,16 +13,14 @@ from mai.config import (
     DISCORD_CLIENT as client,
     DISCORD_TOKEN,
     MAI_PERSONA,
-    LMSTUDIO_API_URL,
-    LMSTUDIO_MAX_OUTPUT_TOKENS,
-    LMSTUDIO_MODEL,
-    LMSTUDIO_REPEAT_PENALTY,
-    LMSTUDIO_TEMPERATURE,
-    LMSTUDIO_USE_SYSTEM_PROMPT,
+    LLM_MAX_OUTPUT_TOKENS,
+    LLM_REPEAT_PENALTY,
+    LLM_TEMPERATURE,
+    LLM_USE_SYSTEM_PROMPT,
     REPLY_SANITIZE,
     REQUEST_TIMEOUT_S,
 )
-from mai.lmstudio import extract_assistant_text, post_chat
+from mai.llm import ChatParams, get_chat_provider
 from mai.personality import resolve_mai_system_prompt
 from mai.reply_sanitize import sanitize_mai_reply, strip_stage_parentheticals
 from mai.vault import (
@@ -34,6 +32,8 @@ from mai.vault import (
     save_state,
 )
 from mai.vault.emotional_analyzer import EmotionalAnalyzer
+from mai.vault.fact_extractor import extract_facts
+from mai.vault.writer import add_facts
 from mai.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ def _channel_allowed(message) -> bool:
 
 
 async def get_mai_response(user_message: str) -> str:
-    """Run LM Studio + vault I/O in a thread so the Discord loop stays responsive."""
+    """Run chat LLM + vault I/O in a thread so the Discord loop stays responsive."""
 
     def _sync_work():
         memory = load_memory()
@@ -88,27 +88,18 @@ async def get_mai_response(user_message: str) -> str:
             )
         turn = _TURN_SUFFIX.format(user=user_message)
 
-        payload: dict = {
-            "model": LMSTUDIO_MODEL,
-            "max_output_tokens": LMSTUDIO_MAX_OUTPUT_TOKENS,
-            "repeat_penalty": LMSTUDIO_REPEAT_PENALTY,
-        }
-        if LMSTUDIO_TEMPERATURE is not None:
-            payload["temperature"] = LMSTUDIO_TEMPERATURE
-
         system_text = resolve_mai_system_prompt(MAI_PERSONA)
-        if LMSTUDIO_USE_SYSTEM_PROMPT:
-            payload["system_prompt"] = system_text
-            payload["input"] = (memory_block + turn).lstrip()
-        else:
-            payload["input"] = (system_text + memory_block + turn).lstrip()
-
-        data = post_chat(
-            LMSTUDIO_API_URL,
-            payload,
-            timeout=float(REQUEST_TIMEOUT_S),
+        chat = get_chat_provider()
+        params = ChatParams(
+            model="",
+            user_prompt=(memory_block + turn).lstrip(),
+            system_prompt=system_text,
+            use_system_prompt_field=LLM_USE_SYSTEM_PROMPT,
+            max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
+            temperature=LLM_TEMPERATURE,
+            repeat_penalty=LLM_REPEAT_PENALTY,
         )
-        mai_response = extract_assistant_text(data)
+        mai_response = chat.complete(params, timeout=float(REQUEST_TIMEOUT_S))
         if mai_response.lower().startswith("mai:"):
             mai_response = mai_response[4:].lstrip()
         # Always strip leaked ``(Playful and eager...)`` director lines; optional deeper sanitize.
@@ -140,6 +131,15 @@ async def get_mai_response(user_message: str) -> str:
                     logger.error("Failed to save state.json")
         except Exception:
             logger.exception("Emotional state update skipped")
+        # ===== Fact extraction =====
+        try:
+            facts = extract_facts(user_message, use_llm=True)
+            if facts:
+                memory = add_facts(memory, facts)
+                if not save_memory(memory):
+                    logger.error("Failed to save memory.json with facts")
+        except Exception:
+            logger.exception("Fact extraction skipped")
 
         return mai_response
 
@@ -152,6 +152,9 @@ async def get_mai_response(user_message: str) -> str:
 
 @client.event
 async def on_ready():
+    from mai.llm import log_provider_on_startup
+
+    log_provider_on_startup()
     logger.info("System prompt variant: %s", MAI_PERSONA)
     logger.info("%s has connected to Discord", client.user)
     logger.info("DMs: %s", "allowed" if DISCORD_ALLOW_DMS else "ignored")

@@ -78,6 +78,7 @@ def test_should_update_state_lmstudio_threshold():
     a = EmotionalAnalyzer()
     assert a.should_update_state({"confidence": 0.44, "analysis_type": "lmstudio"}) is False
     assert a.should_update_state({"confidence": 0.45, "analysis_type": "lmstudio"}) is True
+    assert a.should_update_state({"confidence": 0.45, "analysis_type": "openai_compatible"}) is True
 
 
 def test_should_update_state_nlp_threshold():
@@ -119,7 +120,11 @@ def test_apply_analysis_skips_low_confidence():
 
 def test_parse_analysis_embedded_json():
     a = EmotionalAnalyzer()
-    blob = '{"user_primary_emotion":"joy","user_secondary_emotions":[],"valence":0.5,"arousal":0.5,"dominance":0.5,"intensity":0.5,"confidence":0.9,"triggers":[]}'
+    blob = (
+        '{"user_primary_emotion":"joy","user_secondary_emotions":[],'
+        '"valence":0.5,"arousal":0.5,"dominance":0.5,"intensity":0.5,'
+        '"confidence":0.9,"triggers":[]}'
+    )
     wrapped = f"Here is JSON:\n{blob}\nThanks."
     parsed = a._parse_analysis(wrapped)
     assert parsed is not None
@@ -172,7 +177,7 @@ def test_lmstudio_path_normalizes(mock_nlp_baseline, monkeypatch: pytest.MonkeyP
     def fake_query(self, prompt: str) -> str:
         return json.dumps(payload)
 
-    monkeypatch.setattr(EmotionalAnalyzer, "_query_lmstudio", fake_query)
+    monkeypatch.setattr(EmotionalAnalyzer, "_query_llm", fake_query)
     a = EmotionalAnalyzer(lmstudio_url="http://fake")
     out = a.analyze_interaction(
         "The week is finally over.", "Rest well.", use_deep_analysis=True
@@ -187,7 +192,7 @@ def test_lmstudio_failure_falls_back_to_nlp(mock_nlp_baseline, monkeypatch: pyte
     def boom(self, prompt: str) -> str:
         raise RuntimeError("offline")
 
-    monkeypatch.setattr(EmotionalAnalyzer, "_query_lmstudio", boom)
+    monkeypatch.setattr(EmotionalAnalyzer, "_query_llm", boom)
     a = EmotionalAnalyzer(lmstudio_url="http://fake")
     out = a.analyze_interaction(
         "I am happy!", "Nice!", use_deep_analysis=True

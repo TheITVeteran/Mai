@@ -1,4 +1,4 @@
-"""Shared type aliases for vault JSON shapes (memory.json, state.json, analyzer output)."""
+"""Type aliases for vault JSON (memory, state, analyzer output)."""
 
 from __future__ import annotations
 

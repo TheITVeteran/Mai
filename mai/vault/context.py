@@ -7,6 +7,7 @@ from mai.vault.types import MemoryData, StateData, TurnRecord
 
 logger = logging.getLogger(__name__)
 
+
 def _safe_float(value: Any, default: float = 0.5) -> float:
     """Safely convert value to float or return default."""
     try:
@@ -38,11 +39,13 @@ def build_context_string(memory_data: MemoryData, state_data: StateData) -> str:
     felt = es.get("mai_felt_tone", "")
     context_parts.append(f"Current emotional state: {emotion}")
     if mood:
-        # Diary-style line fed to Mai; should be first-person from analyzer, not narrator omniscient.
-        context_parts.append(f"How you're feeling inside (private, first person): {mood}")
+        # Diary-style line from analyzer: first-person, not narrator omniscient.
+        context_parts.append(
+            f"How you're feeling inside (private, first person): {mood}"
+        )
     if felt:
         context_parts.append(f"Your stance toward them right now: {felt}")
-    
+
     rel_raw = state_data.get("relationship_state")
     if isinstance(rel_raw, dict) and rel_raw:
         rel = rel_raw

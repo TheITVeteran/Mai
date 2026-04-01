@@ -1,0 +1,8 @@
+[flake8]
+max-line-length = 100
+extend-ignore = E203, W503
+per-file-ignores =
+    mai/bot.py: E402
+    mai/personality.py: E501
+    mai/vault/emotional_analyzer.py: E501
+    tests/conftest.py: E402
