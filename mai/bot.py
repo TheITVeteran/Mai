@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from mai.config import (
+    CHAT_OFFLINE_REPLY,
     DISCORD_ALLOWED_CHANNEL_IDS,
     DISCORD_ALLOW_DMS,
     DISCORD_CLIENT as client,
@@ -99,7 +100,16 @@ async def get_mai_response(user_message: str) -> str:
             temperature=LLM_TEMPERATURE,
             repeat_penalty=LLM_REPEAT_PENALTY,
         )
-        mai_response = chat.complete(params, timeout=float(REQUEST_TIMEOUT_S))
+        try:
+            mai_response = chat.complete(params, timeout=float(REQUEST_TIMEOUT_S))
+        except Exception as e:
+            logger.warning(
+                "Chat LLM failed (timeout, connection, or bad response); "
+                "using offline reply. error=%s",
+                e,
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
+            mai_response = CHAT_OFFLINE_REPLY
         if mai_response.lower().startswith("mai:"):
             mai_response = mai_response[4:].lstrip()
         # Always strip leaked ``(Playful and eager...)`` director lines; optional deeper sanitize.

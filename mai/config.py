@@ -80,6 +80,21 @@ MAX_FACTS_LEARNED = max(5, min(500, _env_int("MAX_FACTS_LEARNED", 80)))
 
 REQUEST_TIMEOUT_S = _env_int("REQUEST_TIMEOUT_S", 120)
 
+
+def _env_non_empty_str(name: str, default: str) -> str:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    s = str(raw).strip()
+    return s if s else default
+
+
+# Used when the chat LLM raises (timeouts, connection refused, bad JSON, etc.).
+CHAT_OFFLINE_REPLY = _env_non_empty_str(
+    "CHAT_OFFLINE_REPLY",
+    "I'm having trouble reaching the model right now—I'm still here. Try again in a moment?",
+)
+
 LMSTUDIO_MODEL = os.getenv(
     "LMSTUDIO_MODEL", "l3-8b-stheno-v3.2-iq-imatrix"
 )

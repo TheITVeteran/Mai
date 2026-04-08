@@ -42,3 +42,10 @@ Start only **one** bot process per token (duplicate processes can double-reply).
 https://huggingface.co/Lewdiculous/L3-8B-Stheno-v3.2-GGUF-IQ-Imatrix  
 
 Smoke-test LM Studio HTTP: **`scripts/test_lmstudio.py`**
+
+## When the LLM is offline
+
+- **`REQUEST_TIMEOUT_S`** caps how long each HTTP chat call waits (default **120** seconds). Lower it (e.g. **30**) if you want faster failures.
+- If the **main chat** request errors (connection refused, timeout, HTTP error, bad JSON), Mai sends **`CHAT_OFFLINE_REPLY`** (configurable in `.env`) but still **appends the turn to memory**, runs **emotional analysis** (NLP / hybrid fallback—see `mai/vault/emotional_analyzer.py`), and runs **fact extraction** (NLP if the LLM path fails).
+- **`EMOTION_ANALYSIS_MODE=llm`** still keeps fast NLP as a base for merges; deep analysis failures fall back to NLP-only (see `_lmstudio_analysis`).
+- For a fully local NLP-only path during outages you can set **`EMOTION_ANALYSIS_MODE=fast`** so the analyzer never calls the emotion LLM (main Discord reply still needs the chat model unless it errors, then you get the offline reply).
