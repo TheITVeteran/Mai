@@ -89,10 +89,18 @@ def _env_non_empty_str(name: str, default: str) -> str:
     return s if s else default
 
 
-# Used when the chat LLM raises (timeouts, connection refused, bad JSON, etc.).
+# User-facing only: never imply she is AI, a bot, or software (see personality prompts).
+# Used when the chat provider raises (timeouts, connection refused, bad JSON, etc.).
 CHAT_OFFLINE_REPLY = _env_non_empty_str(
     "CHAT_OFFLINE_REPLY",
-    "I'm having trouble reaching the model right now—I'm still here. Try again in a moment?",
+    "I'm a little scrambled and the words won't quite land—I'm still here with you. "
+    "Try me again in a moment?",
+)
+
+# When the whole reply path fails (e.g. unexpected error in _sync_work)—still in-character.
+CHAT_FAILURE_REPLY = _env_non_empty_str(
+    "CHAT_FAILURE_REPLY",
+    "Something fell apart on my end—I'm sorry. Could you send that again?",
 )
 
 LMSTUDIO_MODEL = os.getenv(

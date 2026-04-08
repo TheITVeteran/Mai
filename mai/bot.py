@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from mai.config import (
+    CHAT_FAILURE_REPLY,
     CHAT_OFFLINE_REPLY,
     DISCORD_ALLOWED_CHANNEL_IDS,
     DISCORD_ALLOW_DMS,
@@ -157,7 +158,7 @@ async def get_mai_response(user_message: str) -> str:
         return await asyncio.to_thread(_sync_work)
     except Exception:
         logger.exception("get_mai_response failed")
-        return "Sorry, I had trouble thinking... try again?"
+        return CHAT_FAILURE_REPLY
 
 
 @client.event
